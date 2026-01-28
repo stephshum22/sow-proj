@@ -1,0 +1,61 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+:root {
+  /* Color palette inspired by your design - Orange theme */
+  --primary: #FF7C4F;           /* Coral */
+  --primary-dark: #FFC6AE;      /* Ember */
+  --primary-light: #FFF6AE;     /* Blush */
+
+  /* Accent colors */
+  --accent-purple: #C269F2;     /* Orchid */
+  --accent-lilac: #E0B4F8;      /* Lilac */
+  --accent-teal: #3B7B70;       /* Teal */
+  --accent-amber: #FFA987;      /* Amber */
+  --accent-seafoam: #E5F0EE;    /* Dew */
+
+  /* Neutral colors */
+  --background: #FFFFFF;
+  --background-secondary: #FFFAF6;  /* Morning Light */
+  --background-tertiary: #F6EAE0;   /* Soft Sand */
+  --background-hover: #EDDAC1;      /* Cream */
+
+  /* Text colors */
+  --text-primary: #4A2C1F;      /* Dark brown for text */
+  --text-secondary: #FF7C4F;    /* Coral for secondary text */
+  --text-tertiary: #FFA987;     /* Amber for tertiary */
+
+  /* Border colors */
+  --border-color: #F6EAE0;      /* Soft Sand */
+  --border-hover: #FFA987;      /* Amber */
+
+  /* State colors */
+  --success: #FF7C4F;
+  --warning: #FFA987;
+  --error: #FFC6AE;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

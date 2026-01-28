@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SOW Builder
 
 An interactive Statement of Work builder for Primer payment integrations.
@@ -132,3 +133,6 @@ Internal use only - Primer.io
 ## 🆘 Support
 
 For questions or issues, contact the Payments Solutions team.
+=======
+# sow-proj
+>>>>>>> 2651d48aaa64206f022efd695a4b58032aa2e809

@@ -19,19 +19,74 @@
 
 .header {
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.headerTitleSection {
+  flex: 1;
   text-align: center;
 }
 
-.header h1 {
+.headerTitleSection h1 {
   font-size: 2rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 
-.header p {
+.headerTitleSection p {
   color: var(--text-secondary);
   font-size: 1rem;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.importButton,
+.exportSchemaButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.importButton:hover,
+.exportSchemaButton:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.supportingDetail {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.referenceLink {
+  display: inline-block;
+  margin-left: 1rem;
+  color: var(--accent-teal);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s ease;
+}
+
+.referenceLink:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .progressBar {
@@ -756,6 +811,213 @@
 .versionDate {
   font-size: 0.8125rem;
   color: var(--text-secondary);
+}
+
+/* Export Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modalContent {
+  background: var(--background);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modalTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.modalDescription {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.exportFormGroup {
+  margin-bottom: 1.5rem;
+}
+
+.exportLabel {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.exportTypeButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.exportTypeButton {
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  background: var(--background);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.exportTypeButton:hover {
+  border-color: var(--primary);
+  background: var(--background-secondary);
+}
+
+.exportTypeButtonActive {
+  border-color: var(--primary);
+  background: var(--background-secondary);
+  color: var(--primary);
+}
+
+.modalButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.headerButtons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.exportButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exportButton:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+/* Additional Notes Section */
+.notesSection {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border-color);
+}
+
+.notesSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.notesSectionTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.editNotesButton,
+.saveNotesButton {
+  background: var(--background-secondary);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editNotesButton:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.saveNotesButton {
+  background: var(--primary);
+  color: white;
+}
+
+.saveNotesButton:hover {
+  background: var(--primary-dark);
+}
+
+.notesTextarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.notesTextarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.notesDisplay {
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--text-primary);
 }
 
 /* Responsive Design */

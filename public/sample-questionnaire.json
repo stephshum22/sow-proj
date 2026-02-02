@@ -1,0 +1,124 @@
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Payment Integration Assessment",
+  "description": "Assess your payment integration requirements",
+  "version": 1,
+  "isPublished": true,
+  "questions": [
+    {
+      "id": "q1-golive",
+      "text": "When do you plan to go live with this integration?",
+      "supportingDetail": "Please provide your target go-live date",
+      "questionType": "TEXT_INPUT",
+      "orderIndex": 0,
+      "isRequired": true
+    },
+    {
+      "id": "q2-payment-methods",
+      "text": "Which payment methods do you need to support?",
+      "supportingDetail": "Select all payment methods your customers will use",
+      "questionType": "MULTI_SELECT",
+      "orderIndex": 1,
+      "isRequired": true,
+      "answers": [
+        {
+          "id": "a1-card",
+          "text": "Credit/Debit Cards",
+          "orderIndex": 0,
+          "referenceUrl": "https://primer.io/docs/connections/payment-methods/cards"
+        },
+        {
+          "id": "a2-applepay",
+          "text": "Apple Pay",
+          "orderIndex": 1,
+          "referenceUrl": "https://primer.io/docs/connections/payment-methods/apple-pay"
+        },
+        {
+          "id": "a3-googlepay",
+          "text": "Google Pay",
+          "orderIndex": 2,
+          "referenceUrl": "https://primer.io/docs/connections/payment-methods/google-pay"
+        },
+        {
+          "id": "a4-paypal",
+          "text": "PayPal",
+          "orderIndex": 3,
+          "referenceUrl": "https://primer.io/docs/connections/payment-methods/paypal"
+        },
+        {
+          "id": "a5-klarna",
+          "text": "Klarna",
+          "orderIndex": 4,
+          "referenceUrl": "https://primer.io/docs/connections/payment-methods/klarna"
+        }
+      ]
+    },
+    {
+      "id": "q3-3ds-strategy",
+      "text": "Do you have a 3D Secure authentication strategy?",
+      "supportingDetail": "3DS helps prevent fraud by adding extra authentication",
+      "questionType": "EXCLUSIVE_SELECT",
+      "orderIndex": 2,
+      "isRequired": true,
+      "answers": [
+        {
+          "id": "a6-yes-mandated",
+          "text": "Yes - Mandated 3DS (all transactions)",
+          "orderIndex": 0,
+          "referenceUrl": "https://primer.io/docs/payment-services/3d-secure/overview"
+        },
+        {
+          "id": "a7-yes-adaptive",
+          "text": "Yes - Adaptive 3DS (risk-based)",
+          "orderIndex": 1,
+          "referenceUrl": "https://primer.io/docs/payment-services/3d-secure/adaptive"
+        },
+        {
+          "id": "a8-no",
+          "text": "No - Not using 3DS yet",
+          "orderIndex": 2
+        }
+      ]
+    },
+    {
+      "id": "q4-recurring",
+      "text": "Do you need to support recurring payments?",
+      "supportingDetail": "For subscriptions or scheduled payments",
+      "questionType": "EXCLUSIVE_SELECT",
+      "orderIndex": 3,
+      "isRequired": false,
+      "answers": [
+        {
+          "id": "a9-yes",
+          "text": "Yes",
+          "orderIndex": 0
+        },
+        {
+          "id": "a10-no",
+          "text": "No",
+          "orderIndex": 1
+        }
+      ]
+    },
+    {
+      "id": "q5-token-migration",
+      "text": "Do you need to migrate existing payment tokens?",
+      "supportingDetail": "If you're switching from another payment provider",
+      "questionType": "EXCLUSIVE_SELECT",
+      "orderIndex": 4,
+      "isRequired": false,
+      "answers": [
+        {
+          "id": "a11-yes",
+          "text": "Yes - I need to migrate tokens",
+          "orderIndex": 0
+        },
+        {
+          "id": "a12-no",
+          "text": "No - Fresh implementation",
+          "orderIndex": 1
+        }
+      ]
+    }
+  ]
+}

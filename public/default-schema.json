@@ -1,0 +1,207 @@
+{
+  "version": "1.0",
+  "title": "SOW Builder",
+  "description": "Create your Statement of Work",
+  "steps": [
+    {
+      "id": "goLiveDate",
+      "label": "Go Live Date",
+      "sections": [
+        {
+          "type": "date",
+          "field": "goLiveDate",
+          "label": "When do you plan to go live?",
+          "required": false
+        }
+      ],
+      "notesField": "goLiveDateNotes",
+      "docLink": null
+    },
+    {
+      "id": "pspApms",
+      "label": "PSPs & APMs",
+      "sections": [
+        {
+          "type": "multi-select-grid",
+          "field": "paymentMethods",
+          "title": "What are the Payment Methods you want to accept?",
+          "options": [
+            "ACH", "Afterpay", "Alipay", "Alipay+", "Alma", "Apple Pay", "Atome",
+            "Bancontact", "Bancontact Payconiq", "Bank Transfer", "Blik", "Card",
+            "Carte Cadeau", "Cetelem", "Chèque Fidélité", "Clearpay", "Coinbase",
+            "Confo+", "CPay", "Dana", "EPS", "Fintecture Smart Transfer",
+            "Fintecture Transfer", "Google Pay", "GrabPay", "iDEAL", "Illicado",
+            "Kaartdirect", "Klarna", "MBWay", "Mobilepay", "Multibanco", "Netaxept",
+            "Nets Easy", "nol Pay", "Ovo", "P24", "Payconiq", "PayNow", "PayPal",
+            "Paytrail", "PromptPay", "ShopBack", "Shopeepay", "Spirit of Cadeau",
+            "Swish", "TripleA", "TrueMoney", "Trustly", "Twint", "Venmo", "Vipps",
+            "WeChat Pay"
+          ],
+          "otherField": "paymentMethodsOther",
+          "otherPlaceholder": "Enter other payment methods"
+        },
+        {
+          "type": "multi-select-grid",
+          "field": "psps",
+          "title": "Which PSPs would you like to use?",
+          "options": [
+            "2C2P", "Adyen", "Airwallex", "Aliant", "Braintree", "Buckaroo",
+            "Checkout.com", "Cybersource", "dLocal", "emerchantpay", "EveryPay",
+            "Fat Zebra", "Fiserv", "iPay88", "Iyzico", "JPMC", "Mastercard Gateway",
+            "Merchant Warrior", "Mollie", "Monext", "Nets Easy", "Nexi", "Nuvei",
+            "Omise", "Onerway", "Pacypay", "Pay.", "Paygent", "PayPal", "PayPlug",
+            "PayU LATAM", "Rapyd", "Shift4", "Stripe", "Thunes", "Trust Payments",
+            "Unlimint", "Worldline", "Worldline Connect", "Worldline Sips",
+            "WorldPay", "WorldPay VAP", "Xendit"
+          ],
+          "otherField": "pspsOther",
+          "otherPlaceholder": "Enter other PSPs"
+        }
+      ],
+      "notesField": "paymentMethodsNotes",
+      "docLink": {
+        "url": "https://primer.io/docs/connections/payment-methods/overview",
+        "label": "📚 View Payment Methods Documentation"
+      }
+    },
+    {
+      "id": "3dsStrategy",
+      "label": "3DS Strategies",
+      "sections": [
+        {
+          "type": "radio",
+          "field": "has3DSStrategy",
+          "label": "Do you currently have a 3DS strategy?",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "conditional": {
+            "when": "yes",
+            "show": [
+              {
+                "type": "radio",
+                "field": "threeDSStrategy",
+                "label": "What is your current strategy?",
+                "options": [
+                  { "value": "mandated", "label": "Mandated 3DS" },
+                  { "value": "adaptive", "label": "Adaptive 3DS" },
+                  { "value": "other", "label": "Other" }
+                ],
+                "conditional": {
+                  "when": "other",
+                  "show": [
+                    {
+                      "type": "text",
+                      "field": "threeDSStrategyOther",
+                      "placeholder": "Please specify your 3DS strategy"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "notesField": "threeDSNotes",
+      "docLink": {
+        "url": "https://primer.io/docs/payment-services/3d-secure/overview",
+        "label": "📚 View 3DS Documentation"
+      }
+    },
+    {
+      "id": "purchaseChannels",
+      "label": "Purchase Channels & Flows",
+      "sections": [
+        {
+          "type": "checkboxes",
+          "field": "channels",
+          "title": "Which channels will we need to support?",
+          "options": [
+            { "value": "Online / Web", "label": "Online / Web" },
+            { "value": "Mobile - Web View", "label": "Mobile - Web View" },
+            { "value": "Mobile - iOS/Android Apps", "label": "Mobile - iOS/Android Apps" }
+          ]
+        },
+        {
+          "type": "checkboxes",
+          "field": "transactionFlows",
+          "title": "Transaction flows:",
+          "options": [
+            { "value": "CIT (Customer Initiated Transaction)", "label": "CIT (Customer Initiated Transaction)" },
+            { "value": "CIT with vaulting for new customers", "label": "CIT with vaulting for new customers" },
+            { "value": "CIT with vaulted payment methods for returning customers", "label": "CIT with vaulted payment methods for returning customers" },
+            { "value": "MIT (Merchant Initiated Transaction) for recurring payments", "label": "MIT (Merchant Initiated Transaction) for recurring payments" }
+          ]
+        },
+        {
+          "type": "radio",
+          "field": "recurringPayments",
+          "label": "Are you doing recurring payments?",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "conditional": {
+            "when": "yes",
+            "show": [
+              {
+                "type": "text",
+                "field": "subscriptionPlatform",
+                "label": "Do you currently have a subscriptions management platform?",
+                "placeholder": "Please specify your subscription platform"
+              }
+            ]
+          }
+        }
+      ],
+      "notesField": "channelsNotes",
+      "docLink": {
+        "url": "https://web-components.primer.io/",
+        "label": "📚 View Web Components Documentation"
+      }
+    },
+    {
+      "id": "tokenMigration",
+      "label": "Token Migration",
+      "sections": [
+        {
+          "type": "radio",
+          "field": "tokenMigrationRequired",
+          "label": "Is token migration required?",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no", "label": "No" }
+          ],
+          "conditional": {
+            "when": "yes",
+            "show": [
+              {
+                "type": "repeatable",
+                "field": "tokenMigrationEntries",
+                "addButtonLabel": "+ Add More PSPs",
+                "fields": [
+                  {
+                    "type": "number",
+                    "field": "tokenCount",
+                    "label": "Number of Tokens Migrated:",
+                    "placeholder": "e.g., 1000",
+                    "width": "200px"
+                  },
+                  {
+                    "type": "text",
+                    "field": "psp",
+                    "label": "Which PSP:",
+                    "placeholder": "Enter PSP name (e.g., Stripe, Adyen)"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "notesField": "tokenMigrationNotes",
+      "docLink": null
+    }
+  ]
+}

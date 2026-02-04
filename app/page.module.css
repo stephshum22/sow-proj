@@ -68,6 +68,87 @@
   transform: translateY(-1px);
 }
 
+/* Role Selection Screen */
+.roleSelectionContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.roleSelectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.roleSelectionSubtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  margin-bottom: 3rem;
+}
+
+.roleCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.roleCard {
+  background: var(--background);
+  border: 3px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.roleCard:hover {
+  border-color: var(--primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(255, 124, 79, 0.2);
+}
+
+.roleCardIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.roleCardTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.roleCardDescription {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.roleSwitchButton {
+  background: var(--background-secondary);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.roleSwitchButton:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+}
+
 .supportingDetail {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -266,6 +347,56 @@
 .paymentMethodButtonActive:hover {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
+}
+
+/* Compact Grid and Buttons for Payment Methods/PSPs */
+.paymentMethodsGridCompact {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.paymentMethodButtonCompact {
+  padding: 0.625rem 0.875rem;
+  background: var(--background);
+  color: var(--text-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.paymentMethodButtonCompact:hover {
+  border-color: var(--border-hover);
+  background: var(--background-secondary);
+}
+
+.paymentMethodButtonCompact.paymentMethodButtonActive {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.paymentMethodButtonCompact.paymentMethodButtonActive:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.sectionSubtitle {
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.highlightedText {
+  color: var(--primary);
+  font-weight: 600;
 }
 
 .otherInputField {
@@ -808,9 +939,76 @@
   color: var(--primary-dark);
 }
 
-.versionDate {
+.versionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.versionRole {
   font-size: 0.8125rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.versionDate {
+  font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.versionReviewedBadge {
+  color: #10b981;
+  font-size: 0.875rem;
+}
+
+.noVersions {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* SE Review Section */
+.seReviewSection {
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid var(--border-color);
+}
+
+.seReviewLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.seReviewCheckbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.seReviewText {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+
+.seReviewBadge {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: #065f46;
+  font-weight: 600;
+  font-size: 0.9375rem;
 }
 
 /* Export Modal */

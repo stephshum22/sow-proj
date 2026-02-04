@@ -99,6 +99,15 @@ type GandalfQuestionnaire = {
 
 type SOWData = {
   goLiveDate: string;
+  currentPaymentMethods: string[];
+  currentPaymentMethodsOther: string;
+  newPaymentMethods: string[];
+  newPaymentMethodsOther: string;
+  currentPSPs: string[];
+  currentPSPsOther: string;
+  newPSPs: string[];
+  newPSPsOther: string;
+  // Legacy fields for backward compatibility
   paymentMethods: string[];
   paymentMethodsOther: string;
   psps: string[];
@@ -123,13 +132,15 @@ type SOWData = {
 
 const CATEGORIES = [
   { id: 'goLiveDate', label: 'Go Live Date', type: 'date' },
-  { id: 'pspApms', label: 'PSPs & APMs', type: 'psp-apms' },
+  { id: 'currentPaymentMethodsAndPSPs', label: 'Current Payment Methods & PSPs', type: 'current-payment-methods-psps' },
+  { id: 'newPaymentMethodsAndPSPs', label: 'Add Payment Methods & PSPs', type: 'new-payment-methods-psps' },
   { id: '3dsStrategy', label: '3DS Strategies', type: '3ds' },
   { id: 'purchaseChannels', label: 'Purchase Channels & Flows', type: 'channels' },
   { id: 'tokenMigration', label: 'Token Migration', type: 'token' },
 ];
 
 const PAYMENT_METHODS = [
+  'Card',
   'ACH',
   'Afterpay',
   'Alipay',
@@ -141,7 +152,6 @@ const PAYMENT_METHODS = [
   'Bancontact Payconiq',
   'Bank Transfer',
   'Blik',
-  'Card',
   'Carte Cadeau',
   'Cetelem',
   'Chèque Fidélité',
@@ -231,7 +241,21 @@ const PSPS = [
   'Xendit',
 ];
 
+type UserRole = 'merchant' | 'bdr-bdm' | 'se' | null;
+
+type SOWVersion = {
+  id: string;
+  version: string;
+  createdBy: UserRole;
+  createdAt: string;
+  data: SOWData;
+  merchantName?: string;
+  seReviewed?: boolean;
+};
+
 export default function Home() {
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [merchantName, setMerchantNameInput] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [showOutput, setShowOutput] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
@@ -239,8 +263,19 @@ export default function Home() {
   const [gandalfQuestionnaire, setGandalfQuestionnaire] = useState<GandalfQuestionnaire | null>(null);
   const [showSchemaImport, setShowSchemaImport] = useState(false);
   const [dynamicFormData, setDynamicFormData] = useState<Record<string, any>>({});
+  const [versions, setVersions] = useState<SOWVersion[]>([]);
+  const [currentVersionId, setCurrentVersionId] = useState<string>('');
+  const [seReviewed, setSeReviewed] = useState(false);
   const [sowData, setSOWData] = useState<SOWData>({
     goLiveDate: '',
+    currentPaymentMethods: [],
+    currentPaymentMethodsOther: '',
+    newPaymentMethods: [],
+    newPaymentMethodsOther: '',
+    currentPSPs: [],
+    currentPSPsOther: '',
+    newPSPs: [],
+    newPSPsOther: '',
     paymentMethods: [],
     paymentMethodsOther: '',
     psps: [],
@@ -268,18 +303,44 @@ export default function Home() {
     tokenMigrationNotes: '',
   });
 
-  // Load default schema on mount
+  // Load default schema and versions on mount
   useEffect(() => {
     loadDefaultSchema();
+    loadVersionsFromLocalStorage();
   }, []);
+
+  const loadVersionsFromLocalStorage = () => {
+    try {
+      const savedVersions = localStorage.getItem('sow-versions');
+      if (savedVersions) {
+        const parsedVersions = JSON.parse(savedVersions);
+        setVersions(parsedVersions);
+      }
+    } catch (error) {
+      console.error('Failed to load versions from localStorage:', error);
+    }
+  };
+
+  const saveVersionToLocalStorage = (newVersion: SOWVersion) => {
+    try {
+      const updatedVersions = [...versions, newVersion];
+      localStorage.setItem('sow-versions', JSON.stringify(updatedVersions));
+      setVersions(updatedVersions);
+      setCurrentVersionId(newVersion.id);
+    } catch (error) {
+      console.error('Failed to save version to localStorage:', error);
+    }
+  };
 
   const loadDefaultSchema = async () => {
     try {
       const response = await fetch('/default-schema.json');
       const schemaData = await response.json();
       setSchema(schemaData);
+      console.log('Default schema loaded successfully');
     } catch (error) {
-      console.error('Failed to load default schema:', error);
+      console.error('Failed to load default schema, using hardcoded defaults:', error);
+      // Schema stays null, will fall back to CATEGORIES
     }
   };
 
@@ -315,6 +376,14 @@ export default function Home() {
         // Reset form data
         setSOWData({
           goLiveDate: '',
+          currentPaymentMethods: [],
+          currentPaymentMethodsOther: '',
+          newPaymentMethods: [],
+          newPaymentMethodsOther: '',
+          currentPSPs: [],
+          currentPSPsOther: '',
+          newPSPs: [],
+          newPSPsOther: '',
           paymentMethods: [],
           paymentMethodsOther: '',
           psps: [],
@@ -358,24 +427,36 @@ export default function Home() {
 
   // Get current question/step based on active questionnaire type
   const getCurrentStep = () => {
+    // For merchant role, step 0 is always merchant name
+    if (userRole === 'merchant' && currentStep === 0) {
+      return { type: 'merchant-name', label: 'Merchant Name' };
+    }
+
+    // Adjust step index for merchant (skip step 0)
+    const adjustedStep = userRole === 'merchant' ? currentStep - 1 : currentStep;
+
     if (gandalfQuestionnaire) {
       const sortedQuestions = [...gandalfQuestionnaire.questions].sort((a, b) => a.orderIndex - b.orderIndex);
-      return sortedQuestions[currentStep];
+      return sortedQuestions[adjustedStep];
     } else if (schema) {
-      return schema.steps[currentStep];
+      return schema.steps[adjustedStep];
     } else {
-      return CATEGORIES[currentStep];
+      return CATEGORIES[adjustedStep];
     }
   };
 
   const getTotalSteps = () => {
+    let baseSteps = 0;
     if (gandalfQuestionnaire) {
-      return gandalfQuestionnaire.questions.length;
+      baseSteps = gandalfQuestionnaire.questions.length;
     } else if (schema) {
-      return schema.steps.length;
+      baseSteps = schema.steps.length;
     } else {
-      return CATEGORIES.length;
+      baseSteps = CATEGORIES.length;
     }
+
+    // Add 1 for merchant name question if merchant role
+    return userRole === 'merchant' ? baseSteps + 1 : baseSteps;
   };
 
   const currentCategory = getCurrentStep();
@@ -398,12 +479,48 @@ export default function Home() {
     }
   };
 
+  const toggleCurrentPaymentMethod = (method: string) => {
+    const currentMethods = sowData.currentPaymentMethods;
+    if (currentMethods.includes(method)) {
+      handleInputChange('currentPaymentMethods', currentMethods.filter(m => m !== method));
+    } else {
+      handleInputChange('currentPaymentMethods', [...currentMethods, method]);
+    }
+  };
+
+  const toggleNewPaymentMethod = (method: string) => {
+    const newMethods = sowData.newPaymentMethods;
+    if (newMethods.includes(method)) {
+      handleInputChange('newPaymentMethods', newMethods.filter(m => m !== method));
+    } else {
+      handleInputChange('newPaymentMethods', [...newMethods, method]);
+    }
+  };
+
   const togglePSP = (psp: string) => {
     const currentPSPs = sowData.psps;
     if (currentPSPs.includes(psp)) {
       handleInputChange('psps', currentPSPs.filter(p => p !== psp));
     } else {
       handleInputChange('psps', [...currentPSPs, psp]);
+    }
+  };
+
+  const toggleCurrentPSP = (psp: string) => {
+    const currentPSPs = sowData.currentPSPs;
+    if (currentPSPs.includes(psp)) {
+      handleInputChange('currentPSPs', currentPSPs.filter(p => p !== psp));
+    } else {
+      handleInputChange('currentPSPs', [...currentPSPs, psp]);
+    }
+  };
+
+  const toggleNewPSP = (psp: string) => {
+    const newPSPs = sowData.newPSPs;
+    if (newPSPs.includes(psp)) {
+      handleInputChange('newPSPs', newPSPs.filter(p => p !== psp));
+    } else {
+      handleInputChange('newPSPs', [...newPSPs, psp]);
     }
   };
 
@@ -460,6 +577,17 @@ export default function Home() {
 
   const handleNext = () => {
     if (isLastStep) {
+      // Create a new version when completing the SOW
+      const newVersion: SOWVersion = {
+        id: `v${versions.length + 1}-${Date.now()}`,
+        version: `v${versions.length + 1}.0`,
+        createdBy: userRole!,
+        createdAt: new Date().toISOString(),
+        data: sowData,
+        merchantName: merchantName || 'Unknown Merchant',
+        seReviewed: false,
+      };
+      saveVersionToLocalStorage(newVersion);
       setShowOutput(true);
     } else {
       setCurrentStep(currentStep + 1);
@@ -475,8 +603,74 @@ export default function Home() {
     setCurrentStep(0);
   };
 
+  const handleRoleSelect = (role: UserRole) => {
+    setUserRole(role);
+    setCurrentStep(0);
+  };
+
+  const handleRoleChange = () => {
+    setUserRole(null);
+    setCurrentStep(0);
+    setMerchantNameInput('');
+    setShowOutput(false);
+  };
+
+  // Role Selection Screen
+  if (!userRole) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.roleSelectionContainer}>
+          <h1 className={styles.roleSelectionTitle}>Welcome to SOW Builder</h1>
+          <p className={styles.roleSelectionSubtitle}>Select your role to get started</p>
+
+          <div className={styles.roleCards}>
+            <button
+              className={styles.roleCard}
+              onClick={() => handleRoleSelect('merchant')}
+            >
+              <div className={styles.roleCardIcon}>🏢</div>
+              <h2 className={styles.roleCardTitle}>Merchant</h2>
+              <p className={styles.roleCardDescription}>I'm looking to integrate payment solutions</p>
+            </button>
+
+            <button
+              className={styles.roleCard}
+              onClick={() => handleRoleSelect('bdr-bdm')}
+            >
+              <div className={styles.roleCardIcon}>💼</div>
+              <h2 className={styles.roleCardTitle}>BDR/BDM</h2>
+              <p className={styles.roleCardDescription}>Business Development Representative/Manager</p>
+            </button>
+
+            <button
+              className={styles.roleCard}
+              onClick={() => handleRoleSelect('se')}
+            >
+              <div className={styles.roleCardIcon}>⚙️</div>
+              <h2 className={styles.roleCardTitle}>SE</h2>
+              <p className={styles.roleCardDescription}>Solutions Engineer</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showOutput) {
-    return <OutputView sowData={sowData} setSOWData={setSOWData} onBackToEdit={handleBackToEdit} />;
+    return (
+      <OutputView
+        sowData={sowData}
+        setSOWData={setSOWData}
+        onBackToEdit={handleBackToEdit}
+        versions={versions}
+        currentVersionId={currentVersionId}
+        userRole={userRole}
+        onVersionsUpdate={(updatedVersions) => {
+          setVersions(updatedVersions);
+          localStorage.setItem('sow-versions', JSON.stringify(updatedVersions));
+        }}
+      />
+    );
   }
 
   const renderGandalfQuestion = (question: GandalfQuestion) => {
@@ -592,16 +786,55 @@ export default function Home() {
   };
 
   const renderFormField = () => {
+    // Merchant name field (merchant role only, step 0)
+    if (currentCategory && 'type' in currentCategory && currentCategory.type === 'merchant-name') {
+      return (
+        <div>
+          <p className={styles.supportingDetail}>Please enter the merchant name for this SOW</p>
+          <input
+            type="text"
+            className={styles.textInput}
+            value={merchantName}
+            onChange={(e) => setMerchantNameInput(e.target.value)}
+            placeholder="e.g., Acme Corp"
+            required
+          />
+        </div>
+      );
+    }
+
     // If using Gandalf questionnaire, render that instead
     if (gandalfQuestionnaire && currentCategory && 'questionType' in currentCategory) {
       return renderGandalfQuestion(currentCategory as GandalfQuestion);
     }
 
-    // Otherwise render based on custom schema or default
+    // If using schema with sections (from default-schema.json)
+    if (schema && currentCategory && 'sections' in currentCategory) {
+      const step = currentCategory as SchemaStep;
+      // For now, fall back to hardcoded rendering based on step id
+      // This maintains backward compatibility with the original form
+      const stepId = step.id;
+
+      if (CATEGORIES.find(cat => cat.id === stepId)) {
+        const matchingCategory = CATEGORIES.find(cat => cat.id === stepId);
+        if (matchingCategory) {
+          return renderCategoryField(matchingCategory);
+        }
+      }
+
+      return <div>Schema-based rendering not yet implemented for this step</div>;
+    }
+
+    // Otherwise render based on CATEGORIES
     if (!currentCategory || !('type' in currentCategory)) {
       return <div>Invalid question configuration</div>;
     }
-    switch (currentCategory.type) {
+
+    return renderCategoryField(currentCategory as typeof CATEGORIES[0]);
+  };
+
+  const renderCategoryField = (category: typeof CATEGORIES[0]) => {
+    switch (category.type) {
       case 'date':
         return (
           <div>
@@ -614,21 +847,23 @@ export default function Home() {
           </div>
         );
 
-      case 'psp-apms':
+      case 'current-payment-methods-psps':
         return (
           <div className={styles.pspApmsWrapper}>
-            {/* Payment Methods Selection */}
+            {/* Current Payment Methods */}
             <div className={styles.paymentMethodsSection}>
-              <h3 className={styles.sectionTitle}>What are the Payment Methods you want to accept?</h3>
-              <div className={styles.paymentMethodsGrid}>
+              <p className={styles.sectionSubtitle}>
+                What payment methods are you <span className={styles.highlightedText}>currently</span> offering?
+              </p>
+              <div className={styles.paymentMethodsGridCompact}>
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method}
                     type="button"
-                    className={`${styles.paymentMethodButton} ${
-                      sowData.paymentMethods.includes(method) ? styles.paymentMethodButtonActive : ''
+                    className={`${styles.paymentMethodButtonCompact} ${
+                      sowData.currentPaymentMethods.includes(method) ? styles.paymentMethodButtonActive : ''
                     }`}
-                    onClick={() => togglePaymentMethod(method)}
+                    onClick={() => toggleCurrentPaymentMethod(method)}
                   >
                     {method}
                   </button>
@@ -639,25 +874,27 @@ export default function Home() {
                 <input
                   type="text"
                   className={styles.textInput}
-                  value={sowData.paymentMethodsOther}
-                  onChange={(e) => handleInputChange('paymentMethodsOther', e.target.value)}
-                  placeholder="Enter other payment methods"
+                  value={sowData.currentPaymentMethodsOther}
+                  onChange={(e) => handleInputChange('currentPaymentMethodsOther', e.target.value)}
+                  placeholder="Enter other current payment methods"
                 />
               </div>
             </div>
 
-            {/* PSP Selection */}
+            {/* Current PSPs */}
             <div className={styles.paymentMethodsSection}>
-              <h3 className={styles.sectionTitle}>Which PSPs would you like to use?</h3>
-              <div className={styles.paymentMethodsGrid}>
+              <p className={styles.sectionSubtitle}>
+                Which PSPs are you <span className={styles.highlightedText}>currently</span> using?
+              </p>
+              <div className={styles.paymentMethodsGridCompact}>
                 {PSPS.map((psp) => (
                   <button
                     key={psp}
                     type="button"
-                    className={`${styles.paymentMethodButton} ${
-                      sowData.psps.includes(psp) ? styles.paymentMethodButtonActive : ''
+                    className={`${styles.paymentMethodButtonCompact} ${
+                      sowData.currentPSPs.includes(psp) ? styles.paymentMethodButtonActive : ''
                     }`}
-                    onClick={() => togglePSP(psp)}
+                    onClick={() => toggleCurrentPSP(psp)}
                   >
                     {psp}
                   </button>
@@ -668,13 +905,79 @@ export default function Home() {
                 <input
                   type="text"
                   className={styles.textInput}
-                  value={sowData.pspsOther}
-                  onChange={(e) => handleInputChange('pspsOther', e.target.value)}
-                  placeholder="Enter other PSPs"
+                  value={sowData.currentPSPsOther}
+                  onChange={(e) => handleInputChange('currentPSPsOther', e.target.value)}
+                  placeholder="Enter other current PSPs"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'new-payment-methods-psps':
+        return (
+          <div className={styles.pspApmsWrapper}>
+            {/* New Payment Methods */}
+            <div className={styles.paymentMethodsSection}>
+              <p className={styles.sectionSubtitle}>
+                What payment methods do you want to <span className={styles.highlightedText}>add</span>?
+              </p>
+              <div className={styles.paymentMethodsGridCompact}>
+                {PAYMENT_METHODS.filter(method => !sowData.currentPaymentMethods.includes(method)).map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    className={`${styles.paymentMethodButtonCompact} ${
+                      sowData.newPaymentMethods.includes(method) ? styles.paymentMethodButtonActive : ''
+                    }`}
+                    onClick={() => toggleNewPaymentMethod(method)}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.otherInputField}>
+                <label className={styles.otherInputLabel}>Other:</label>
+                <input
+                  type="text"
+                  className={styles.textInput}
+                  value={sowData.newPaymentMethodsOther}
+                  onChange={(e) => handleInputChange('newPaymentMethodsOther', e.target.value)}
+                  placeholder="Enter other new payment methods"
                 />
               </div>
             </div>
 
+            {/* New PSPs */}
+            <div className={styles.paymentMethodsSection}>
+              <p className={styles.sectionSubtitle}>
+                Which PSPs do you want to <span className={styles.highlightedText}>add</span>?
+              </p>
+              <div className={styles.paymentMethodsGridCompact}>
+                {PSPS.filter(psp => !sowData.currentPSPs.includes(psp)).map((psp) => (
+                  <button
+                    key={psp}
+                    type="button"
+                    className={`${styles.paymentMethodButtonCompact} ${
+                      sowData.newPSPs.includes(psp) ? styles.paymentMethodButtonActive : ''
+                    }`}
+                    onClick={() => toggleNewPSP(psp)}
+                  >
+                    {psp}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.otherInputField}>
+                <label className={styles.otherInputLabel}>Other:</label>
+                <input
+                  type="text"
+                  className={styles.textInput}
+                  value={sowData.newPSPsOther}
+                  onChange={(e) => handleInputChange('newPSPsOther', e.target.value)}
+                  placeholder="Enter other new PSPs"
+                />
+              </div>
+            </div>
           </div>
         );
 
@@ -1005,6 +1308,9 @@ export default function Home() {
             <p>{gandalfQuestionnaire ? gandalfQuestionnaire.description : schema?.description || 'Create your Statement of Work'}</p>
           </div>
           <div className={styles.headerActions}>
+            <button className={styles.roleSwitchButton} onClick={handleRoleChange} title="Change Role">
+              {userRole === 'merchant' ? '🏢' : userRole === 'bdr-bdm' ? '💼' : '⚙️'} Switch Role
+            </button>
             <label className={styles.importButton}>
               📂 Import Questionnaire
               <input
@@ -1024,50 +1330,71 @@ export default function Home() {
 
         <div className={styles.progressBar}>
           <div className={styles.progressSteps}>
+            {userRole === 'merchant' && (
+              <div
+                className={`${styles.progressStep} ${
+                  0 <= currentStep ? styles.progressStepActive : ''
+                }`}
+              >
+                <div className={styles.progressStepCircle}>
+                  {0 < currentStep ? '✓' : 1}
+                </div>
+                <span className={styles.progressStepLabel}>Merchant Name</span>
+              </div>
+            )}
             {gandalfQuestionnaire ? (
               gandalfQuestionnaire.questions
                 .sort((a, b) => a.orderIndex - b.orderIndex)
-                .map((q, idx) => (
+                .map((q, idx) => {
+                  const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                  return (
+                    <div
+                      key={q.id}
+                      className={`${styles.progressStep} ${
+                        displayIdx <= currentStep ? styles.progressStepActive : ''
+                      }`}
+                    >
+                      <div className={styles.progressStepCircle}>
+                        {displayIdx < currentStep ? '✓' : displayIdx + 1}
+                      </div>
+                      <span className={styles.progressStepLabel}>Q{displayIdx + 1}</span>
+                    </div>
+                  );
+                })
+            ) : schema ? (
+              schema.steps.map((step, idx) => {
+                const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                return (
                   <div
-                    key={q.id}
+                    key={step.id}
                     className={`${styles.progressStep} ${
-                      idx <= currentStep ? styles.progressStepActive : ''
+                      displayIdx <= currentStep ? styles.progressStepActive : ''
                     }`}
                   >
                     <div className={styles.progressStepCircle}>
-                      {idx < currentStep ? '✓' : idx + 1}
+                      {displayIdx < currentStep ? '✓' : displayIdx + 1}
                     </div>
-                    <span className={styles.progressStepLabel}>Q{idx + 1}</span>
+                    <span className={styles.progressStepLabel}>{step.label}</span>
                   </div>
-                ))
-            ) : schema ? (
-              schema.steps.map((step, idx) => (
-                <div
-                  key={step.id}
-                  className={`${styles.progressStep} ${
-                    idx <= currentStep ? styles.progressStepActive : ''
-                  }`}
-                >
-                  <div className={styles.progressStepCircle}>
-                    {idx < currentStep ? '✓' : idx + 1}
-                  </div>
-                  <span className={styles.progressStepLabel}>{step.label}</span>
-                </div>
-              ))
+                );
+              })
             ) : (
-              CATEGORIES.map((cat, idx) => (
-                <div
-                  key={cat.id}
-                  className={`${styles.progressStep} ${
-                    idx <= currentStep ? styles.progressStepActive : ''
-                  }`}
-                >
-                  <div className={styles.progressStepCircle}>
-                    {idx < currentStep ? '✓' : idx + 1}
+              CATEGORIES.map((cat, idx) => {
+                const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                return (
+                  <div
+                    key={cat.id}
+                    className={`${styles.progressStep} ${
+                      displayIdx <= currentStep ? styles.progressStepActive : ''
+                    }`}
+                  >
+                    <div className={styles.progressStepCircle}>
+                      {displayIdx < currentStep ? '✓' : displayIdx + 1}
+                    </div>
+                    <span className={styles.progressStepLabel}>{cat.label}</span>
                   </div>
-                  <span className={styles.progressStepLabel}>{cat.label}</span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -1107,17 +1434,62 @@ function OutputView({
   sowData,
   setSOWData,
   onBackToEdit,
+  versions,
+  currentVersionId,
+  userRole,
+  onVersionsUpdate,
 }: {
   sowData: SOWData;
   setSOWData: (data: SOWData) => void;
   onBackToEdit: () => void;
+  versions: SOWVersion[];
+  currentVersionId: string;
+  userRole: UserRole;
+  onVersionsUpdate: (versions: SOWVersion[]) => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState('summary');
-  const currentVersion = 'v1.0';
+  const [selectedVersionId, setSelectedVersionId] = useState(currentVersionId);
   const [merchantName, setMerchantName] = useState('');
+  const [bdmName, setBdmName] = useState('');
+  const [seName, setSeName] = useState('');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportType, setExportType] = useState<'pdf' | 'json'>('pdf');
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
+
+  const currentVersion = versions.find(v => v.id === selectedVersionId) || versions[versions.length - 1];
+  const seReviewed = currentVersion?.seReviewed || false;
+
+  // Use the selected version's data, or fall back to current sowData
+  const displayData = currentVersion?.data || sowData;
+
+  const handleSeReviewToggle = () => {
+    const updatedVersions = versions.map(v =>
+      v.id === selectedVersionId ? { ...v, seReviewed: !v.seReviewed } : v
+    );
+    onVersionsUpdate(updatedVersions);
+  };
+
+  const getRoleLabel = (role: UserRole) => {
+    if (role === 'merchant') return '🏢 Merchant';
+    if (role === 'bdr-bdm') return '💼 BDR/BDM';
+    if (role === 'se') return '⚙️ SE';
+    return 'Unknown';
+  };
+
+  const formatVersionDate = (isoDate: string) => {
+    const date = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   const handleNotesChange = (field: keyof SOWData, value: string) => {
     setSOWData({
@@ -1128,15 +1500,20 @@ function OutputView({
 
   const handleExportJSON = () => {
     const todayDate = new Date().toISOString().split('T')[0];
+    const versionString = currentVersion?.version || 'v1.0';
     const fileName = merchantName
-      ? `SOW_${merchantName.replace(/\s+/g, '-')}_${todayDate}_${currentVersion}.json`
-      : `SOW_${todayDate}_${currentVersion}.json`;
+      ? `SOW_${merchantName.replace(/\s+/g, '-')}_${todayDate}_${versionString}.json`
+      : `SOW_${todayDate}_${versionString}.json`;
 
     const exportData = {
-      merchantName: merchantName || 'Unknown',
-      version: currentVersion,
+      merchantName: currentVersion?.merchantName || merchantName || 'Unknown',
+      businessDevelopmentManager: bdmName || '',
+      solutionsEngineer: seName || '',
+      version: versionString,
       exportDate: todayDate,
-      data: sowData,
+      createdBy: currentVersion?.createdBy,
+      seReviewed: currentVersion?.seReviewed,
+      data: displayData,
     };
 
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -1149,6 +1526,8 @@ function OutputView({
     URL.revokeObjectURL(url);
     setShowExportDialog(false);
     setMerchantName('');
+    setBdmName('');
+    setSeName('');
   };
 
   const handleExportPDF = () => {
@@ -1185,24 +1564,47 @@ function OutputView({
     doc.setFontSize(10);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
-    doc.text(`Version: ${currentVersion}`, pageWidth - margin - 60, 28);
+    doc.text(`Version: ${currentVersion?.version || 'v1.0'}`, pageWidth - margin - 60, 28);
 
     yPos = 45;
     doc.setTextColor(74, 44, 31); // Dark brown for body text
 
+    // BDM and SE Names
+    if (bdmName || seName) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(74, 44, 31);
+
+      if (bdmName) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Business Development Manager: ', margin, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(bdmName, margin + 70, yPos);
+        yPos += 6;
+      }
+
+      if (seName) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Solutions Engineer: ', margin, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(seName, margin + 47, yPos);
+        yPos += 6;
+      }
+
+      yPos += 6; // Extra spacing after names
+    }
+
     // Go Live Date Section
-    doc.setFillColor(255, 246, 174); // Light yellow
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('GO LIVE DATE', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('GO LIVE DATE', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(74, 44, 31);
-    yPos = addText(formatDate(sowData.goLiveDate), margin, yPos, contentWidth);
+    yPos = addText(formatDate(displayData.goLiveDate), margin, yPos, contentWidth);
     yPos += 8;
 
     // Check if we need a new page
@@ -1216,13 +1618,11 @@ function OutputView({
 
     // Payment Methods Section
     yPos = checkNewPage(30);
-    doc.setFillColor(255, 246, 174);
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('PAYMENT METHODS', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('PAYMENT METHODS', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -1233,13 +1633,11 @@ function OutputView({
 
     // PSPs Section
     yPos = checkNewPage(30);
-    doc.setFillColor(255, 246, 174);
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('PSPs', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('PSPs', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -1250,13 +1648,11 @@ function OutputView({
 
     // 3DS Strategies Section
     yPos = checkNewPage(25);
-    doc.setFillColor(255, 246, 174);
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('3DS STRATEGIES', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('3DS STRATEGIES', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -1266,13 +1662,11 @@ function OutputView({
 
     // Purchase Channels & Flows Section
     yPos = checkNewPage(40);
-    doc.setFillColor(255, 246, 174);
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('PURCHASE CHANNELS & FLOWS', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('PURCHASE CHANNELS & FLOWS', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -1283,13 +1677,11 @@ function OutputView({
 
     // Token Migration Section
     yPos = checkNewPage(25);
-    doc.setFillColor(255, 246, 174);
-    doc.rect(margin, yPos, contentWidth, 8, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 124, 79);
-    doc.text('TOKEN MIGRATION', margin + 2, yPos + 6);
-    yPos += 12;
+    doc.text('TOKEN MIGRATION', margin, yPos);
+    yPos += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -1297,21 +1689,20 @@ function OutputView({
     const tokenText = formatTokenMigration().replace(/• /g, '  • ');
     yPos = addText(tokenText, margin, yPos, contentWidth);
 
-    // Footer on last page
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Generated by Primer SOW Builder', margin, pageHeight - 10);
-    doc.text(`primer.io`, pageWidth - margin - 20, pageHeight - 10);
+    // Footer removed as per user request
 
     // Save the PDF
     const todayDate = new Date().toISOString().split('T')[0];
+    const versionString = currentVersion?.version || 'v1.0';
     const fileName = merchantName
-      ? `SOW_${merchantName.replace(/\s+/g, '-')}_${todayDate}_${currentVersion}.pdf`
-      : `SOW_${todayDate}_${currentVersion}.pdf`;
+      ? `SOW_${merchantName.replace(/\s+/g, '-')}_${todayDate}_${versionString}.pdf`
+      : `SOW_${todayDate}_${versionString}.pdf`;
 
     doc.save(fileName);
     setShowExportDialog(false);
     setMerchantName('');
+    setBdmName('');
+    setSeName('');
   };
 
   const handleExport = () => {
@@ -1330,59 +1721,121 @@ function OutputView({
       month: 'long',
       day: 'numeric'
     });
-    if (sowData.goLiveDateNotes) {
-      return `${formattedDate}\n\nAdditional Notes:\n${sowData.goLiveDateNotes}`;
+    if (displayData.goLiveDateNotes) {
+      return `${formattedDate}\n\nAdditional Notes:\n${displayData.goLiveDateNotes}`;
     }
     return formattedDate;
   };
 
   const formatPaymentMethods = () => {
-    const methods = [...sowData.paymentMethods];
-    if (sowData.paymentMethodsOther) {
-      methods.push(`Other: ${sowData.paymentMethodsOther}`);
+    const parts = [];
+
+    // Current Payment Methods
+    if (displayData.currentPaymentMethods.length > 0 || displayData.currentPaymentMethodsOther) {
+      parts.push('Currently Offering:');
+      const current = [...displayData.currentPaymentMethods];
+      if (displayData.currentPaymentMethodsOther) {
+        current.push(`Other: ${displayData.currentPaymentMethodsOther}`);
+      }
+      parts.push(current.map(method => `  • ${method}`).join('\n'));
     }
-    if (methods.length === 0) {
-      return 'No payment methods selected';
+
+    // New Payment Methods to Add
+    if (displayData.newPaymentMethods.length > 0 || displayData.newPaymentMethodsOther) {
+      if (parts.length > 0) parts.push('');
+      parts.push('Want to Add:');
+      const newMethods = [...displayData.newPaymentMethods];
+      if (displayData.newPaymentMethodsOther) {
+        newMethods.push(`Other: ${displayData.newPaymentMethodsOther}`);
+      }
+      parts.push(newMethods.map(method => `  • ${method}`).join('\n'));
     }
-    let result = methods.map(method => `• ${method}`).join('\n');
-    if (sowData.paymentMethodsNotes) {
-      result += `\n\nAdditional Notes:\n${sowData.paymentMethodsNotes}`;
+
+    // Fall back to legacy fields if new fields are empty
+    if (parts.length === 0) {
+      const methods = [...displayData.paymentMethods];
+      if (displayData.paymentMethodsOther) {
+        methods.push(`Other: ${displayData.paymentMethodsOther}`);
+      }
+      if (methods.length > 0) {
+        parts.push(methods.map(method => `• ${method}`).join('\n'));
+      } else {
+        return 'No payment methods selected';
+      }
     }
-    return result;
+
+    if (displayData.paymentMethodsNotes) {
+      parts.push('');
+      parts.push('Additional Notes:');
+      parts.push(displayData.paymentMethodsNotes);
+    }
+
+    return parts.join('\n');
   };
 
   const formatPSPs = () => {
-    const psps = [...sowData.psps];
-    if (sowData.pspsOther) {
-      psps.push(`Other: ${sowData.pspsOther}`);
+    const parts = [];
+
+    // Current PSPs
+    if (displayData.currentPSPs.length > 0 || displayData.currentPSPsOther) {
+      parts.push('Currently Offering:');
+      const current = [...displayData.currentPSPs];
+      if (displayData.currentPSPsOther) {
+        current.push(`Other: ${displayData.currentPSPsOther}`);
+      }
+      parts.push(current.map(psp => `  • ${psp}`).join('\n'));
     }
-    if (psps.length === 0) {
-      return 'No PSPs selected';
+
+    // New PSPs to Add
+    if (displayData.newPSPs.length > 0 || displayData.newPSPsOther) {
+      if (parts.length > 0) parts.push('');
+      parts.push('Want to Add:');
+      const newPSPs = [...displayData.newPSPs];
+      if (displayData.newPSPsOther) {
+        newPSPs.push(`Other: ${displayData.newPSPsOther}`);
+      }
+      parts.push(newPSPs.map(psp => `  • ${psp}`).join('\n'));
     }
-    let result = psps.map(psp => `• ${psp}`).join('\n');
-    if (sowData.pspsNotes) {
-      result += `\n\nAdditional Notes:\n${sowData.pspsNotes}`;
+
+    // Fall back to legacy fields if new fields are empty
+    if (parts.length === 0) {
+      const psps = [...displayData.psps];
+      if (displayData.pspsOther) {
+        psps.push(`Other: ${displayData.pspsOther}`);
+      }
+      if (psps.length > 0) {
+        parts.push(psps.map(psp => `• ${psp}`).join('\n'));
+      } else {
+        return 'No PSPs selected';
+      }
     }
-    return result;
+
+    if (displayData.pspsNotes) {
+      parts.push('');
+      parts.push('Additional Notes:');
+      parts.push(displayData.pspsNotes);
+    }
+
+    return parts.join('\n');
   };
 
   const format3DSStrategy = () => {
     let result = '';
-    if (sowData.has3DSStrategy === 'no') {
+    if (displayData.has3DSStrategy === 'no') {
       result = 'No 3DS strategy currently';
-    } else if (sowData.has3DSStrategy === 'yes') {
-      if (sowData.threeDSStrategy === 'mandated') {
+    } else if (displayData.has3DSStrategy === 'yes') {
+      if (displayData.threeDSStrategy === 'mandated') {
         result = 'Yes - Mandated 3DS';
-      } else if (sowData.threeDSStrategy === 'adaptive') {
+      } else if (displayData.threeDSStrategy === 'adaptive') {
         result = 'Yes - Adaptive 3DS';
-      } else if (sowData.threeDSStrategy === 'other') {
-        result = `Yes - Other: ${sowData.threeDSStrategyOther || 'Not specified'}`;
+      } else if (displayData.threeDSStrategy === 'other') {
+        result = `Yes - Other: ${displayData.threeDSStrategyOther || 'Not specified'}`;
       }
     } else {
       result = 'No information provided';
     }
-    if (sowData.threeDSNotes) {
-      result += `\n\nAdditional Notes:\n${sowData.threeDSNotes}`;
+    if (displayData.threeDSNotes) {
+      result += `\n\nAdditional Notes:\n${displayData.threeDSNotes}`;
     }
     return result;
   };
@@ -1392,38 +1845,38 @@ function OutputView({
 
     // Channels
     parts.push('Channels:');
-    if (sowData.channels.length > 0) {
-      parts.push(sowData.channels.map(channel => `  • ${channel}`).join('\n'));
+    if (displayData.channels.length > 0) {
+      parts.push(displayData.channels.map(channel => `  • ${channel}`).join('\n'));
     } else {
       parts.push('  None selected');
     }
 
     // Transaction Flows
     parts.push('\nTransaction Flows:');
-    if (sowData.transactionFlows.length > 0) {
-      parts.push(sowData.transactionFlows.map(flow => `  • ${flow}`).join('\n'));
+    if (displayData.transactionFlows.length > 0) {
+      parts.push(displayData.transactionFlows.map(flow => `  • ${flow}`).join('\n'));
     } else {
       parts.push('  None selected');
     }
 
     // Recurring Payments
     parts.push('\nRecurring Payments:');
-    if (sowData.recurringPayments === 'yes') {
+    if (displayData.recurringPayments === 'yes') {
       parts.push('  • Yes');
-      if (sowData.subscriptionPlatform && sowData.subscriptionPlatform !== 'no') {
-        parts.push(`  • Subscription Platform: ${sowData.subscriptionPlatform}`);
-      } else if (sowData.subscriptionPlatform === 'no') {
+      if (displayData.subscriptionPlatform && displayData.subscriptionPlatform !== 'no') {
+        parts.push(`  • Subscription Platform: ${displayData.subscriptionPlatform}`);
+      } else if (displayData.subscriptionPlatform === 'no') {
         parts.push('  • Subscription Platform: No');
       }
-    } else if (sowData.recurringPayments === 'no') {
+    } else if (displayData.recurringPayments === 'no') {
       parts.push('  • No');
     } else {
       parts.push('  Not specified');
     }
 
-    if (sowData.channelsNotes) {
+    if (displayData.channelsNotes) {
       parts.push('\nAdditional Notes:');
-      parts.push(sowData.channelsNotes);
+      parts.push(displayData.channelsNotes);
     }
 
     return parts.join('\n');
@@ -1431,13 +1884,13 @@ function OutputView({
 
   const formatTokenMigration = () => {
     let result = '';
-    if (sowData.tokenMigrationRequired === 'no') {
+    if (displayData.tokenMigrationRequired === 'no') {
       result = 'No token migration required';
-    } else if (sowData.tokenMigrationRequired === 'yes') {
-      if (sowData.tokenMigrationEntries.length === 0 || !sowData.tokenMigrationEntries[0].psp) {
+    } else if (displayData.tokenMigrationRequired === 'yes') {
+      if (displayData.tokenMigrationEntries.length === 0 || !displayData.tokenMigrationEntries[0].psp) {
         result = 'Token migration required (no details provided)';
       } else {
-        result = sowData.tokenMigrationEntries.map((entry, index) => {
+        result = displayData.tokenMigrationEntries.map((entry, index) => {
           const tokenCount = entry.tokenCount || '0';
           const psp = entry.psp || 'Not specified';
           return `• PSP: ${psp}\n  Tokens: ${tokenCount}`;
@@ -1446,8 +1899,8 @@ function OutputView({
     } else {
       result = 'No information provided';
     }
-    if (sowData.tokenMigrationNotes) {
-      result += `\n\nAdditional Notes:\n${sowData.tokenMigrationNotes}`;
+    if (displayData.tokenMigrationNotes) {
+      result += `\n\nAdditional Notes:\n${displayData.tokenMigrationNotes}`;
     }
     return result;
   };
@@ -1458,7 +1911,7 @@ function OutputView({
     // Go Live Date
     sections.push('GO LIVE DATE');
     sections.push('═══════════════════════════════════════');
-    sections.push(formatDate(sowData.goLiveDate));
+    sections.push(formatDate(displayData.goLiveDate));
     sections.push('');
     sections.push('');
 
@@ -1563,7 +2016,7 @@ function OutputView({
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Export SOW</h3>
             <p className={styles.modalDescription}>
-              Enter merchant name and select export format
+              Enter the details below to generate your SOW
             </p>
 
             <div className={styles.exportFormGroup}>
@@ -1575,6 +2028,28 @@ function OutputView({
                 onChange={(e) => setMerchantName(e.target.value)}
                 placeholder="e.g., Acme Corp"
                 autoFocus
+              />
+            </div>
+
+            <div className={styles.exportFormGroup}>
+              <label className={styles.exportLabel}>Business Development Manager:</label>
+              <input
+                type="text"
+                className={styles.textInput}
+                value={bdmName}
+                onChange={(e) => setBdmName(e.target.value)}
+                placeholder="Enter BDM name"
+              />
+            </div>
+
+            <div className={styles.exportFormGroup}>
+              <label className={styles.exportLabel}>Solutions Engineer:</label>
+              <input
+                type="text"
+                className={styles.textInput}
+                value={seName}
+                onChange={(e) => setSeName(e.target.value)}
+                placeholder="Enter SE name"
               />
             </div>
 
@@ -1602,6 +2077,8 @@ function OutputView({
                 onClick={() => {
                   setShowExportDialog(false);
                   setMerchantName('');
+                  setBdmName('');
+                  setSeName('');
                 }}
               >
                 Cancel
@@ -1647,7 +2124,7 @@ function OutputView({
       <main className={styles.mainContent}>
         <div className={styles.contentHeader}>
           <h1>{categoryContent[selectedCategory].title}</h1>
-          <span className={styles.versionBadge}>{currentVersion}</span>
+          <span className={styles.versionBadge}>{currentVersion?.version || 'v1.0'}</span>
         </div>
 
         {categoryContent[selectedCategory].docLink && (
@@ -1672,24 +2149,25 @@ function OutputView({
           <div className={styles.notesSection}>
             <div className={styles.notesSectionHeader}>
               <h3 className={styles.notesSectionTitle}>Additional Notes</h3>
-              {editingNotes !== selectedCategory ? (
+              {/* Only allow editing if viewing current version */}
+              {selectedVersionId === currentVersionId && editingNotes !== selectedCategory ? (
                 <button
                   className={styles.editNotesButton}
                   onClick={() => setEditingNotes(selectedCategory)}
                 >
-                  ✏️ {sowData[categoryContent[selectedCategory].notesField as keyof SOWData] ? 'Edit' : 'Add'} Notes
+                  ✏️ {displayData[categoryContent[selectedCategory].notesField as keyof SOWData] ? 'Edit' : 'Add'} Notes
                 </button>
-              ) : (
+              ) : selectedVersionId === currentVersionId ? (
                 <button
                   className={styles.saveNotesButton}
                   onClick={() => setEditingNotes(null)}
                 >
                   ✓ Save
                 </button>
-              )}
+              ) : null}
             </div>
 
-            {editingNotes === selectedCategory ? (
+            {editingNotes === selectedCategory && selectedVersionId === currentVersionId ? (
               <textarea
                 className={styles.notesTextarea}
                 value={sowData[categoryContent[selectedCategory].notesField as keyof SOWData] as string || ''}
@@ -1699,9 +2177,9 @@ function OutputView({
                 autoFocus
               />
             ) : (
-              sowData[categoryContent[selectedCategory].notesField as keyof SOWData] && (
+              displayData[categoryContent[selectedCategory].notesField as keyof SOWData] && (
                 <div className={styles.notesDisplay}>
-                  {sowData[categoryContent[selectedCategory].notesField as keyof SOWData] as string}
+                  {displayData[categoryContent[selectedCategory].notesField as keyof SOWData] as string}
                 </div>
               )
             )}
@@ -1711,12 +2189,50 @@ function OutputView({
 
       {/* Right Sidebar - Versions */}
       <aside className={styles.versionSidebar}>
-        <h3 className={styles.versionSidebarTitle}>Version</h3>
-        <div className={styles.versionList}>
-          <div className={styles.versionItem}>
-            <span className={styles.versionLabel}>{currentVersion}</span>
-            <span className={styles.versionDate}>Current</span>
+        <h3 className={styles.versionSidebarTitle}>Version History</h3>
+
+        {/* SE Review Checkbox */}
+        {userRole === 'se' && (
+          <div className={styles.seReviewSection}>
+            <label className={styles.seReviewLabel}>
+              <input
+                type="checkbox"
+                checked={seReviewed}
+                onChange={handleSeReviewToggle}
+                className={styles.seReviewCheckbox}
+              />
+              <span className={styles.seReviewText}>SE Reviewed ✓</span>
+            </label>
           </div>
+        )}
+
+        {seReviewed && userRole !== 'se' && (
+          <div className={styles.seReviewBadge}>
+            ✓ SE Reviewed
+          </div>
+        )}
+
+        <div className={styles.versionList}>
+          {versions.length === 0 ? (
+            <div className={styles.noVersions}>No versions yet</div>
+          ) : (
+            versions.slice().reverse().map((version) => (
+              <button
+                key={version.id}
+                className={`${styles.versionItem} ${
+                  selectedVersionId === version.id ? styles.versionItemActive : ''
+                }`}
+                onClick={() => setSelectedVersionId(version.id)}
+              >
+                <div className={styles.versionHeader}>
+                  <span className={styles.versionLabel}>{version.version}</span>
+                  {version.seReviewed && <span className={styles.versionReviewedBadge}>✓</span>}
+                </div>
+                <span className={styles.versionRole}>{getRoleLabel(version.createdBy)}</span>
+                <span className={styles.versionDate}>{formatVersionDate(version.createdAt)}</span>
+              </button>
+            ))
+          )}
         </div>
       </aside>
     </div>

@@ -18,46 +18,16 @@
       "docLink": null
     },
     {
-      "id": "pspApms",
-      "label": "PSPs & APMs",
-      "sections": [
-        {
-          "type": "multi-select-grid",
-          "field": "paymentMethods",
-          "title": "What are the Payment Methods you want to accept?",
-          "options": [
-            "ACH", "Afterpay", "Alipay", "Alipay+", "Alma", "Apple Pay", "Atome",
-            "Bancontact", "Bancontact Payconiq", "Bank Transfer", "Blik", "Card",
-            "Carte Cadeau", "Cetelem", "Chèque Fidélité", "Clearpay", "Coinbase",
-            "Confo+", "CPay", "Dana", "EPS", "Fintecture Smart Transfer",
-            "Fintecture Transfer", "Google Pay", "GrabPay", "iDEAL", "Illicado",
-            "Kaartdirect", "Klarna", "MBWay", "Mobilepay", "Multibanco", "Netaxept",
-            "Nets Easy", "nol Pay", "Ovo", "P24", "Payconiq", "PayNow", "PayPal",
-            "Paytrail", "PromptPay", "ShopBack", "Shopeepay", "Spirit of Cadeau",
-            "Swish", "TripleA", "TrueMoney", "Trustly", "Twint", "Venmo", "Vipps",
-            "WeChat Pay"
-          ],
-          "otherField": "paymentMethodsOther",
-          "otherPlaceholder": "Enter other payment methods"
-        },
-        {
-          "type": "multi-select-grid",
-          "field": "psps",
-          "title": "Which PSPs would you like to use?",
-          "options": [
-            "2C2P", "Adyen", "Airwallex", "Aliant", "Braintree", "Buckaroo",
-            "Checkout.com", "Cybersource", "dLocal", "emerchantpay", "EveryPay",
-            "Fat Zebra", "Fiserv", "iPay88", "Iyzico", "JPMC", "Mastercard Gateway",
-            "Merchant Warrior", "Mollie", "Monext", "Nets Easy", "Nexi", "Nuvei",
-            "Omise", "Onerway", "Pacypay", "Pay.", "Paygent", "PayPal", "PayPlug",
-            "PayU LATAM", "Rapyd", "Shift4", "Stripe", "Thunes", "Trust Payments",
-            "Unlimint", "Worldline", "Worldline Connect", "Worldline Sips",
-            "WorldPay", "WorldPay VAP", "Xendit"
-          ],
-          "otherField": "pspsOther",
-          "otherPlaceholder": "Enter other PSPs"
-        }
-      ],
+      "id": "currentPaymentMethodsAndPSPs",
+      "label": "Current Payment Methods & PSPs",
+      "sections": [],
+      "notesField": null,
+      "docLink": null
+    },
+    {
+      "id": "newPaymentMethodsAndPSPs",
+      "label": "Add Payment Methods & PSPs",
+      "sections": [],
       "notesField": "paymentMethodsNotes",
       "docLink": {
         "url": "https://primer.io/docs/connections/payment-methods/overview",

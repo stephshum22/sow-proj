@@ -251,6 +251,11 @@ type SOWVersion = {
   data: SOWData;
   merchantName?: string;
   seReviewed?: boolean;
+  seApproved?: boolean;
+  sharedInMeetingDate?: string;
+  emailedTo?: string;
+  emailedDate?: string;
+  publishedToMerchant?: boolean;
 };
 
 export default function Home() {
@@ -600,6 +605,7 @@ export default function Home() {
 
   const handleBackToEdit = () => {
     setShowOutput(false);
+    setUserRole('se');
     setCurrentStep(0);
   };
 
@@ -834,6 +840,23 @@ export default function Home() {
   };
 
   const renderCategoryField = (category: typeof CATEGORIES[0]) => {
+    const renderNotesField = (notesField: keyof SOWData) => {
+      if (userRole !== 'se') return null;
+
+      return (
+        <div className={styles.seNotesSection}>
+          <label className={styles.seNotesLabel}>Additional Notes (SE Only):</label>
+          <textarea
+            className={styles.seNotesTextarea}
+            value={sowData[notesField] as string || ''}
+            onChange={(e) => handleInputChange(notesField, e.target.value)}
+            placeholder="Add any additional notes or context for this section..."
+            rows={4}
+          />
+        </div>
+      );
+    };
+
     switch (category.type) {
       case 'date':
         return (
@@ -844,6 +867,7 @@ export default function Home() {
               value={sowData.goLiveDate}
               onChange={(e) => handleInputChange('goLiveDate', e.target.value)}
             />
+            {renderNotesField('goLiveDateNotes')}
           </div>
         );
 
@@ -911,6 +935,7 @@ export default function Home() {
                 />
               </div>
             </div>
+            {renderNotesField('paymentMethodsNotes')}
           </div>
         );
 
@@ -1059,6 +1084,7 @@ export default function Home() {
                 )}
               </div>
             )}
+            {renderNotesField('threeDSNotes')}
           </div>
         );
 
@@ -1210,6 +1236,7 @@ export default function Home() {
                 </div>
               )}
             </div>
+            {renderNotesField('channelsNotes')}
           </div>
         );
 
@@ -1291,6 +1318,7 @@ export default function Home() {
                 </button>
               </div>
             )}
+            {renderNotesField('tokenMigrationNotes')}
           </div>
         );
 
@@ -1513,6 +1541,10 @@ function OutputView({
       exportDate: todayDate,
       createdBy: currentVersion?.createdBy,
       seReviewed: currentVersion?.seReviewed,
+      seApproved: currentVersion?.seApproved,
+      sharedInMeetingDate: currentVersion?.sharedInMeetingDate,
+      emailedTo: currentVersion?.emailedTo,
+      emailedDate: currentVersion?.emailedDate,
       data: displayData,
     };
 
@@ -1594,6 +1626,40 @@ function OutputView({
       yPos += 6; // Extra spacing after names
     }
 
+    // Status Tracking Section (only meeting/email info, no SE review/approval)
+    if (currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 124, 79);
+      doc.text('STATUS', margin, yPos);
+      yPos += 8;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(74, 44, 31);
+
+      if (currentVersion?.sharedInMeetingDate) {
+        const meetingDate = new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        yPos = addText(`Shared with merchant in meeting on: ${meetingDate}`, margin, yPos, contentWidth);
+        yPos += 2;
+      }
+      if (currentVersion?.emailedTo && currentVersion?.emailedDate) {
+        const emailDate = new Date(currentVersion.emailedDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        yPos = addText(`Emailed SOW to: ${currentVersion.emailedTo} on ${emailDate}`, margin, yPos, contentWidth);
+        yPos += 2;
+      }
+
+      yPos += 8; // Extra spacing after status section
+    }
+
     // Go Live Date Section
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -1629,6 +1695,14 @@ function OutputView({
     doc.setTextColor(74, 44, 31);
     const paymentMethodsText = formatPaymentMethods().replace(/• /g, '  • ');
     yPos = addText(paymentMethodsText, margin, yPos, contentWidth);
+    yPos += 6;
+
+    // Add clickable documentation link
+    doc.setFontSize(9);
+    doc.setTextColor(41, 76, 70);
+    doc.textWithLink('View Payment Methods Documentation', margin, yPos, {
+      url: 'https://primer.io/docs/connections/payment-methods/overview'
+    });
     yPos += 8;
 
     // PSPs Section
@@ -1644,6 +1718,14 @@ function OutputView({
     doc.setTextColor(74, 44, 31);
     const pspsText = formatPSPs().replace(/• /g, '  • ');
     yPos = addText(pspsText, margin, yPos, contentWidth);
+    yPos += 6;
+
+    // Add clickable documentation link
+    doc.setFontSize(9);
+    doc.setTextColor(41, 76, 70);
+    doc.textWithLink('View PSP Documentation', margin, yPos, {
+      url: 'https://primer.io/docs/connections/payment-methods/overview'
+    });
     yPos += 8;
 
     // 3DS Strategies Section
@@ -1658,6 +1740,14 @@ function OutputView({
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(74, 44, 31);
     yPos = addText(format3DSStrategy(), margin, yPos, contentWidth);
+    yPos += 6;
+
+    // Add clickable documentation link
+    doc.setFontSize(9);
+    doc.setTextColor(41, 76, 70);
+    doc.textWithLink('View 3DS Documentation', margin, yPos, {
+      url: 'https://primer.io/docs/payment-services/3d-secure/overview'
+    });
     yPos += 8;
 
     // Purchase Channels & Flows Section
@@ -1673,6 +1763,14 @@ function OutputView({
     doc.setTextColor(74, 44, 31);
     const channelsText = formatChannelsAndFlows().replace(/• /g, '  • ');
     yPos = addText(channelsText, margin, yPos, contentWidth);
+    yPos += 6;
+
+    // Add clickable documentation link
+    doc.setFontSize(9);
+    doc.setTextColor(41, 76, 70);
+    doc.textWithLink('View Web Components Documentation', margin, yPos, {
+      url: 'https://web-components.primer.io/'
+    });
     yPos += 8;
 
     // Token Migration Section
@@ -1837,6 +1935,7 @@ function OutputView({
     if (displayData.threeDSNotes) {
       result += `\n\nAdditional Notes:\n${displayData.threeDSNotes}`;
     }
+
     return result;
   };
 
@@ -1908,44 +2007,76 @@ function OutputView({
   const formatSummary = () => {
     const sections = [];
 
+    // Status Tracking (if any tracking info exists)
+    if (currentVersion?.seReviewed || currentVersion?.seApproved || currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) {
+      sections.push('STATUS');
+      sections.push('━━━━━━━━━━━━━━━━━━━━');
+
+      if (currentVersion?.seReviewed) {
+        sections.push('✓ SE Reviewed');
+      }
+      if (currentVersion?.seApproved) {
+        sections.push('✓ SE Approved');
+      }
+      if (currentVersion?.sharedInMeetingDate) {
+        const meetingDate = new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        sections.push(`📅 Shared with merchant in meeting on: ${meetingDate}`);
+      }
+      if (currentVersion?.emailedTo && currentVersion?.emailedDate) {
+        const emailDate = new Date(currentVersion.emailedDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        sections.push(`📧 Emailed SOW to: ${currentVersion.emailedTo} on ${emailDate}`);
+      }
+
+      sections.push('');
+      sections.push('');
+    }
+
     // Go Live Date
     sections.push('GO LIVE DATE');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(formatDate(displayData.goLiveDate));
     sections.push('');
     sections.push('');
 
     // Payment Methods
     sections.push('PAYMENT METHODS');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(formatPaymentMethods());
     sections.push('');
     sections.push('');
 
     // PSPs
     sections.push('PSPs');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(formatPSPs());
     sections.push('');
     sections.push('');
 
     // 3DS Strategies
     sections.push('3DS STRATEGIES');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(format3DSStrategy());
     sections.push('');
     sections.push('');
 
     // Purchase Channels & Flows
     sections.push('PURCHASE CHANNELS & FLOWS');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(formatChannelsAndFlows());
     sections.push('');
     sections.push('');
 
     // Token Migration
     sections.push('TOKEN MIGRATION');
-    sections.push('═══════════════════════════════════════');
+    sections.push('━━━━━━━━━━━━━━━━━━━━');
     sections.push(formatTokenMigration());
 
     return sections.join('\n');
@@ -1958,53 +2089,11 @@ function OutputView({
       docLink: null,
       notesField: null,
     },
-    goLiveDate: {
-      title: 'Go Live Date',
-      content: formatDate(sowData.goLiveDate),
+    merchantSummary: {
+      title: 'Merchant Summary',
+      content: formatSummary(),
       docLink: null,
-      notesField: 'goLiveDateNotes',
-    },
-    paymentMethods: {
-      title: 'Payment Methods',
-      content: formatPaymentMethods(),
-      docLink: {
-        url: 'https://primer.io/docs/connections/payment-methods/overview',
-        label: '📚 View Payment Methods Documentation',
-      },
-      notesField: 'paymentMethodsNotes',
-    },
-    psps: {
-      title: 'PSPs',
-      content: formatPSPs(),
-      docLink: {
-        url: 'https://primer.io/docs/connections/payment-methods/overview',
-        label: '📚 View PSP Documentation',
-      },
-      notesField: 'pspsNotes',
-    },
-    threeDSStrategy: {
-      title: '3DS Strategies',
-      content: format3DSStrategy(),
-      docLink: {
-        url: 'https://primer.io/docs/payment-services/3d-secure/overview',
-        label: '📚 View 3DS Documentation',
-      },
-      notesField: 'threeDSNotes',
-    },
-    channelsAndFlows: {
-      title: 'Purchase Channels & Flows',
-      content: formatChannelsAndFlows(),
-      docLink: {
-        url: 'https://web-components.primer.io/',
-        label: '📚 View Web Components Documentation',
-      },
-      notesField: 'channelsNotes',
-    },
-    tokenMigration: {
-      title: 'Token Migration',
-      content: formatTokenMigration(),
-      docLink: null,
-      notesField: 'tokenMigrationNotes',
+      notesField: null,
     },
   };
 
@@ -2098,7 +2187,7 @@ function OutputView({
           <h2>SOW Builder</h2>
           <div className={styles.headerButtons}>
             <button className={styles.editButton} onClick={onBackToEdit}>
-              ← Edit
+              ← SE Technical Review
             </button>
             <button className={styles.exportButton} onClick={() => setShowExportDialog(true)}>
               📥 Export
@@ -2122,27 +2211,236 @@ function OutputView({
 
       {/* Main Content */}
       <main className={styles.mainContent}>
+        {/* SE Tracking Section - Moved to top of main content (not shown on merchant summary) */}
+        {userRole === 'se' && selectedCategory !== 'merchantSummary' && (
+          <div className={styles.seTrackingSectionMain}>
+            <h3 className={styles.seTrackingTitleMain}>Status Tracking</h3>
+
+            <div className={styles.seTrackingGrid}>
+              {/* SE Reviewed */}
+              <label className={styles.seTrackingCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={currentVersion?.seReviewed || false}
+                  onChange={() => {
+                    const updatedVersions = versions.map(v =>
+                      v.id === selectedVersionId ? { ...v, seReviewed: !v.seReviewed } : v
+                    );
+                    onVersionsUpdate(updatedVersions);
+                  }}
+                  className={styles.checkbox}
+                />
+                <span>SE Reviewed</span>
+              </label>
+
+              {/* SE Approved */}
+              <label className={styles.seTrackingCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={currentVersion?.seApproved || false}
+                  onChange={() => {
+                    const updatedVersions = versions.map(v =>
+                      v.id === selectedVersionId ? { ...v, seApproved: !v.seApproved } : v
+                    );
+                    onVersionsUpdate(updatedVersions);
+                  }}
+                  className={styles.checkbox}
+                />
+                <span>SE Approved</span>
+              </label>
+
+              {/* Shared in Meeting */}
+              <div className={styles.seTrackingField}>
+                <label className={styles.seTrackingFieldLabel}>Shared with merchant in meeting on:</label>
+                <input
+                  type="date"
+                  className={styles.seTrackingDateInput}
+                  value={currentVersion?.sharedInMeetingDate || ''}
+                  onChange={(e) => {
+                    const updatedVersions = versions.map(v =>
+                      v.id === selectedVersionId ? { ...v, sharedInMeetingDate: e.target.value } : v
+                    );
+                    onVersionsUpdate(updatedVersions);
+                  }}
+                />
+              </div>
+
+              {/* Emailed to Merchant */}
+              <div className={styles.seTrackingField}>
+                <label className={styles.seTrackingFieldLabel}>Emailed SOW to merchant:</label>
+                <input
+                  type="email"
+                  className={styles.seTrackingInput}
+                  value={currentVersion?.emailedTo || ''}
+                  onChange={(e) => {
+                    const updatedVersions = versions.map(v =>
+                      v.id === selectedVersionId ? { ...v, emailedTo: e.target.value } : v
+                    );
+                    onVersionsUpdate(updatedVersions);
+                  }}
+                  placeholder="merchant@email.com"
+                />
+                <input
+                  type="date"
+                  className={styles.seTrackingDateInput}
+                  value={currentVersion?.emailedDate || ''}
+                  onChange={(e) => {
+                    const updatedVersions = versions.map(v =>
+                      v.id === selectedVersionId ? { ...v, emailedDate: e.target.value } : v
+                    );
+                    onVersionsUpdate(updatedVersions);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Show tracking info for merchants */}
+        {userRole !== 'se' && (currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) && (
+          <div className={styles.merchantTrackingInfoMain}>
+            {currentVersion?.sharedInMeetingDate && (
+              <div className={styles.trackingInfoItem}>
+                📅 Shared in meeting: {new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            )}
+            {currentVersion?.emailedTo && currentVersion?.emailedDate && (
+              <div className={styles.trackingInfoItem}>
+                📧 Emailed to {currentVersion.emailedTo} on {new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className={styles.contentHeader}>
           <h1>{categoryContent[selectedCategory].title}</h1>
           <span className={styles.versionBadge}>{currentVersion?.version || 'v1.0'}</span>
         </div>
 
-        {categoryContent[selectedCategory].docLink && (
-          <a
-            href={categoryContent[selectedCategory].docLink.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.docLinkBox}
-          >
-            {categoryContent[selectedCategory].docLink.label}
-          </a>
-        )}
+        {/* Special rendering for summary pages with inline doc links */}
+        {(selectedCategory === 'summary' || selectedCategory === 'merchantSummary') ? (
+          <div className={styles.contentBody}>
+            {/* Status Section */}
+            {(() => {
+              const isMerchantView = selectedCategory === 'merchantSummary';
+              const showSEStatus = !isMerchantView && (currentVersion?.seReviewed || currentVersion?.seApproved);
+              const showMerchantStatus = currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo;
 
-        <div className={styles.contentBody}>
-          <p style={{ whiteSpace: 'pre-wrap' }}>
-            {categoryContent[selectedCategory].content}
-          </p>
-        </div>
+              if (!showSEStatus && !showMerchantStatus) return null;
+
+              return (
+                <div className={styles.summarySection}>
+                  <p style={{ whiteSpace: 'pre-wrap' }}>
+                    {'STATUS\n━━━━━━━━━━━━━━━━━━━━\n'}
+                    {!isMerchantView && currentVersion?.seReviewed && '✓ SE Reviewed\n'}
+                    {!isMerchantView && currentVersion?.seApproved && '✓ SE Approved\n'}
+                    {currentVersion?.sharedInMeetingDate && `📅 Shared with merchant in meeting on: ${new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
+                    {currentVersion?.emailedTo && currentVersion?.emailedDate && `📧 Emailed SOW to: ${currentVersion.emailedTo} on ${new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* Go Live Date */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'GO LIVE DATE\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {formatDate(displayData.goLiveDate)}
+              </p>
+            </div>
+
+            {/* Payment Methods */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'PAYMENT METHODS\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {formatPaymentMethods()}
+              </p>
+              <a
+                href="https://primer.io/docs/connections/payment-methods/overview"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.docLinkBox}
+              >
+                🔗 View Payment Methods Documentation
+              </a>
+            </div>
+
+            {/* PSPs */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'PSPs\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {formatPSPs()}
+              </p>
+              <a
+                href="https://primer.io/docs/connections/payment-methods/overview"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.docLinkBox}
+              >
+                🔗 View PSP Documentation
+              </a>
+            </div>
+
+            {/* 3DS Strategies */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'3DS STRATEGIES\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {format3DSStrategy()}
+              </p>
+              <a
+                href="https://primer.io/docs/payment-services/3d-secure/overview"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.docLinkBox}
+              >
+                🔗 View 3DS Documentation
+              </a>
+            </div>
+
+            {/* Purchase Channels & Flows */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'PURCHASE CHANNELS & FLOWS\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {formatChannelsAndFlows()}
+              </p>
+              <a
+                href="https://web-components.primer.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.docLinkBox}
+              >
+                🔗 View Web Components Documentation
+              </a>
+            </div>
+
+            {/* Token Migration */}
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {'TOKEN MIGRATION\n━━━━━━━━━━━━━━━━━━━━\n'}
+                {formatTokenMigration()}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={styles.contentBody}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {categoryContent[selectedCategory].content}
+              </p>
+            </div>
+
+            {categoryContent[selectedCategory].docLink && (
+              <a
+                href={categoryContent[selectedCategory].docLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.docLinkBox}
+              >
+                {categoryContent[selectedCategory].docLink.label}
+              </a>
+            )}
+          </>
+        )}
 
         {/* Additional Notes Section */}
         {categoryContent[selectedCategory].notesField && (
@@ -2189,50 +2487,59 @@ function OutputView({
 
       {/* Right Sidebar - Versions */}
       <aside className={styles.versionSidebar}>
-        <h3 className={styles.versionSidebarTitle}>Version History</h3>
+        <h3 className={styles.versionSidebarTitle}>
+          {selectedCategory === 'merchantSummary' ? 'Published Versions' : 'Version History'}
+        </h3>
 
-        {/* SE Review Checkbox */}
-        {userRole === 'se' && (
-          <div className={styles.seReviewSection}>
-            <label className={styles.seReviewLabel}>
-              <input
-                type="checkbox"
-                checked={seReviewed}
-                onChange={handleSeReviewToggle}
-                className={styles.seReviewCheckbox}
-              />
-              <span className={styles.seReviewText}>SE Reviewed ✓</span>
-            </label>
-          </div>
-        )}
-
-        {seReviewed && userRole !== 'se' && (
-          <div className={styles.seReviewBadge}>
-            ✓ SE Reviewed
-          </div>
+        {/* Push to Merchant button for SEs */}
+        {userRole === 'se' && selectedCategory === 'summary' && currentVersion && (
+          <button
+            className={styles.pushToMerchantButton}
+            onClick={() => {
+              const updatedVersions = versions.map(v =>
+                v.id === selectedVersionId ? { ...v, publishedToMerchant: !v.publishedToMerchant } : v
+              );
+              onVersionsUpdate(updatedVersions);
+            }}
+          >
+            {currentVersion?.publishedToMerchant ? '✓ Published to Merchant' : '📤 Push to Merchant'}
+          </button>
         )}
 
         <div className={styles.versionList}>
-          {versions.length === 0 ? (
-            <div className={styles.noVersions}>No versions yet</div>
-          ) : (
-            versions.slice().reverse().map((version) => (
-              <button
-                key={version.id}
-                className={`${styles.versionItem} ${
-                  selectedVersionId === version.id ? styles.versionItemActive : ''
-                }`}
-                onClick={() => setSelectedVersionId(version.id)}
-              >
-                <div className={styles.versionHeader}>
-                  <span className={styles.versionLabel}>{version.version}</span>
-                  {version.seReviewed && <span className={styles.versionReviewedBadge}>✓</span>}
-                </div>
-                <span className={styles.versionRole}>{getRoleLabel(version.createdBy)}</span>
-                <span className={styles.versionDate}>{formatVersionDate(version.createdAt)}</span>
-              </button>
-            ))
-          )}
+          {(() => {
+            // Filter versions based on page
+            const displayVersions = selectedCategory === 'merchantSummary'
+              ? versions.filter(v => v.publishedToMerchant)
+              : versions;
+
+            if (displayVersions.length === 0) {
+              return <div className={styles.noVersions}>
+                {selectedCategory === 'merchantSummary' ? 'No published versions yet' : 'No versions yet'}
+              </div>;
+            }
+
+            return displayVersions.slice().reverse().map((version) => (
+              <div key={version.id} className={styles.versionItemWrapper}>
+                <button
+                  className={`${styles.versionItem} ${
+                    selectedVersionId === version.id ? styles.versionItemActive : ''
+                  }`}
+                  onClick={() => setSelectedVersionId(version.id)}
+                >
+                  <div className={styles.versionHeader}>
+                    <span className={styles.versionLabel}>{version.version}</span>
+                    <div className={styles.versionBadges}>
+                      {version.publishedToMerchant && <span className={styles.versionPublishedBadge}>📤</span>}
+                      {version.seReviewed && <span className={styles.versionReviewedBadge}>✓</span>}
+                    </div>
+                  </div>
+                  <span className={styles.versionRole}>{getRoleLabel(version.createdBy)}</span>
+                  <span className={styles.versionDate}>{formatVersionDate(version.createdAt)}</span>
+                </button>
+              </div>
+            ));
+          })()}
         </div>
       </aside>
     </div>

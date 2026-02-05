@@ -399,6 +399,39 @@
   font-weight: 600;
 }
 
+/* SE Notes Section on Questionnaire Pages */
+.seNotesSection {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border-color);
+}
+
+.seNotesLabel {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.seNotesTextarea {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+  min-height: 120px;
+}
+
+.seNotesTextarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .otherInputField {
   margin-top: 1rem;
   display: flex;
@@ -856,24 +889,33 @@
 
 .docLinkBox {
   display: inline-block;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, #E5F0EE 0%, #D0E8E3 100%);
-  border: 2px solid #95C6BE;
-  border-radius: 12px;
+  padding: 0.625rem 1rem;
+  background: #E5F0EE;
+  border: 1px solid #C1D9D5;
+  border-radius: 8px;
   color: #294C46;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   text-decoration: none;
-  margin-bottom: 2rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(59, 123, 112, 0.1);
+  margin-top: 1.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(41, 76, 70, 0.06);
 }
 
 .docLinkBox:hover {
-  background: linear-gradient(135deg, #D0E8E3 0%, #95C6BE 100%);
-  border-color: #3B7B70;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 123, 112, 0.2);
+  background: #D0E8E3;
+  border-color: #95C6BE;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(41, 76, 70, 0.12);
+}
+
+/* Summary sections with inline doc links */
+.summarySection {
+  margin-bottom: 2.5rem;
+}
+
+.summarySection:last-child {
+  margin-bottom: 0;
 }
 
 .contentBody {
@@ -882,6 +924,7 @@
   color: var(--text-primary);
   max-width: 800px;
 }
+
 
 /* Right Sidebar - Versions */
 .versionSidebar {
@@ -957,9 +1000,42 @@
   color: var(--text-secondary);
 }
 
+.versionBadges {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 .versionReviewedBadge {
   color: #10b981;
   font-size: 0.875rem;
+}
+
+.versionPublishedBadge {
+  font-size: 0.75rem;
+}
+
+.versionItemWrapper {
+  position: relative;
+}
+
+.pushToMerchantButton {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pushToMerchantButton:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
 }
 
 .noVersions {
@@ -969,8 +1045,67 @@
   font-size: 0.875rem;
 }
 
-/* SE Review Section */
-.seReviewSection {
+/* SE Tracking Section */
+.seTrackingSection {
+  padding: 1rem;
+  background: var(--background-secondary);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.seTrackingTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 0.5rem 0;
+}
+
+.seTrackingCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.seTrackingField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.seTrackingFieldLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.seTrackingInput,
+.seTrackingDateInput {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.seTrackingInput:focus,
+.seTrackingDateInput:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Merchant Tracking Info */
+.merchantTrackingInfo {
   padding: 1rem;
   background: var(--background-secondary);
   border-radius: 8px;
@@ -978,37 +1113,51 @@
   border: 2px solid var(--border-color);
 }
 
-.seReviewLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  user-select: none;
+.trackingInfoItem {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
 }
 
-.seReviewCheckbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: var(--primary);
+.trackingInfoItem:last-child {
+  margin-bottom: 0;
 }
 
-.seReviewText {
+/* SE Tracking Section in Main Content */
+.seTrackingSectionMain {
+  background: var(--background-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.seTrackingTitleMain {
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 0.9375rem;
+  margin: 0 0 1.25rem 0;
 }
 
-.seReviewBadge {
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  border: 2px solid #10b981;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  text-align: center;
-  color: #065f46;
-  font-weight: 600;
-  font-size: 0.9375rem;
+.seTrackingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.25rem;
+}
+
+.merchantTrackingInfoMain {
+  background: linear-gradient(135deg, #E5F0EE 0%, #F0F7F5 100%);
+  border: 2px solid #C1D9D5;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.merchantTrackingInfoMain .trackingInfoItem {
+  font-size: 0.95rem;
+  color: #294C46;
+  font-weight: 500;
 }
 
 /* Export Modal */

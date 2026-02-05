@@ -31,7 +31,7 @@
       "notesField": "paymentMethodsNotes",
       "docLink": {
         "url": "https://primer.io/docs/connections/payment-methods/overview",
-        "label": "📚 View Payment Methods Documentation"
+        "label": "🔗 View Payment Methods Documentation"
       }
     },
     {
@@ -76,7 +76,7 @@
       "notesField": "threeDSNotes",
       "docLink": {
         "url": "https://primer.io/docs/payment-services/3d-secure/overview",
-        "label": "📚 View 3DS Documentation"
+        "label": "🔗 View 3DS Documentation"
       }
     },
     {
@@ -128,7 +128,7 @@
       "notesField": "channelsNotes",
       "docLink": {
         "url": "https://web-components.primer.io/",
-        "label": "📚 View Web Components Documentation"
+        "label": "🔗 View Web Components Documentation"
       }
     },
     {

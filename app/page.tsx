@@ -1806,7 +1806,7 @@ function OutputView({
   userRole: UserRole;
   onVersionsUpdate: (versions: SOWVersion[]) => void;
 }) {
-  const [selectedCategory, setSelectedCategory] = useState('summary');
+  const [selectedCategory, setSelectedCategory] = useState(userRole === 'merchant' ? 'merchantSOW' : 'summary');
   const [selectedVersionId, setSelectedVersionId] = useState(currentVersionId);
   const [merchantName, setMerchantName] = useState('');
   const [bdmName, setBdmName] = useState('');
@@ -2459,26 +2459,35 @@ function OutputView({
     onVersionsUpdate(updatedVersions);
   };
 
-  const categoryContent: Record<string, any> = {
-    summary: {
-      title: 'Summary',
-      content: formatSummary(),
-      docLink: null,
-      notesField: null,
-    },
-    merchantSummary: {
-      title: 'Merchant Summary',
-      content: formatSummary(),
-      docLink: null,
-      notesField: null,
-    },
-    onboardingGuide: {
-      title: 'Onboarding Guide',
-      content: null,
-      docLink: null,
-      notesField: null,
-    },
-  };
+  const categoryContent: Record<string, any> = userRole === 'merchant'
+    ? {
+        merchantSOW: {
+          title: 'SOW Summary',
+          content: null,
+          docLink: null,
+          notesField: null,
+        },
+        merchantGuide: {
+          title: 'Onboarding Guide',
+          content: null,
+          docLink: null,
+          notesField: null,
+        },
+      }
+    : {
+        summary: {
+          title: 'Summary',
+          content: formatSummary(),
+          docLink: null,
+          notesField: null,
+        },
+        onboardingGuide: {
+          title: 'Onboarding Guide',
+          content: null,
+          docLink: null,
+          notesField: null,
+        },
+      };
 
   return (
     <>
@@ -2595,7 +2604,7 @@ function OutputView({
       {/* Main Content */}
       <main className={styles.mainContent}>
         {/* SE Tracking Section - Moved to top of main content (not shown on merchant summary) */}
-        {userRole === 'se' && selectedCategory !== 'merchantSummary' && (
+        {userRole === 'se' && (
           <div className={styles.seTrackingSectionMain}>
             <h3 className={styles.seTrackingTitleMain}>Status Tracking</h3>
 
@@ -2679,134 +2688,88 @@ function OutputView({
           </div>
         )}
 
-        {/* Show tracking info for merchants */}
-        {userRole !== 'se' && (currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) && (
-          <div className={styles.merchantTrackingInfoMain}>
-            {currentVersion?.sharedInMeetingDate && (
-              <div className={styles.trackingInfoItem}>
-                📅 Shared in meeting: {new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            )}
-            {currentVersion?.emailedTo && currentVersion?.emailedDate && (
-              <div className={styles.trackingInfoItem}>
-                📧 Emailed to {currentVersion.emailedTo} on {new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className={styles.contentHeader}>
           <h1>{categoryContent[selectedCategory].title}</h1>
           <span className={styles.versionBadge}>{currentVersion?.version || 'v1.0'}</span>
         </div>
 
-        {/* Special rendering for summary pages with inline doc links */}
-        {(selectedCategory === 'summary' || selectedCategory === 'merchantSummary') ? (
+        {/* ── SE Summary view ── */}
+        {selectedCategory === 'summary' && (
           <div className={styles.contentBody}>
-            {/* Status Section */}
-            {(() => {
-              const isMerchantView = selectedCategory === 'merchantSummary';
-              const showSEStatus = !isMerchantView && (currentVersion?.seReviewed || currentVersion?.seApproved);
-              const showMerchantStatus = currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo;
-
-              if (!showSEStatus && !showMerchantStatus) return null;
-
-              return (
-                <div className={styles.summarySection}>
-                  <p style={{ whiteSpace: 'pre-wrap' }}>
-                    {'STATUS\n━━━━━━━━━━━━━━━━━━━━\n'}
-                    {!isMerchantView && currentVersion?.seReviewed && '✓ SE Reviewed\n'}
-                    {!isMerchantView && currentVersion?.seApproved && '✓ SE Approved\n'}
-                    {currentVersion?.sharedInMeetingDate && `📅 Shared with merchant in meeting on: ${new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
-                    {currentVersion?.emailedTo && currentVersion?.emailedDate && `📧 Emailed SOW to: ${currentVersion.emailedTo} on ${new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
-                  </p>
-                </div>
-              );
-            })()}
-
+            {/* SE Status Section */}
+            {(currentVersion?.seReviewed || currentVersion?.seApproved || currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) && (
+              <div className={styles.summarySection}>
+                <p style={{ whiteSpace: 'pre-wrap' }}>
+                  {'STATUS\n━━━━━━━━━━━━━━━━━━━━\n'}
+                  {currentVersion?.seReviewed && '✓ SE Reviewed\n'}
+                  {currentVersion?.seApproved && '✓ SE Approved\n'}
+                  {currentVersion?.sharedInMeetingDate && `📅 Shared in meeting: ${new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
+                  {currentVersion?.emailedTo && currentVersion?.emailedDate && `📧 Emailed to: ${currentVersion.emailedTo} on ${new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n`}
+                </p>
+              </div>
+            )}
             {/* Go Live Date */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'GO LIVE DATE\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {formatDate(displayData.goLiveDate)}
-              </p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'GO LIVE DATE\n━━━━━━━━━━━━━━━━━━━━\n'}{formatDate(displayData.goLiveDate)}</p>
             </div>
-
             {/* Payment Methods */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'PAYMENT METHODS\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {formatPaymentMethods()}
-              </p>
-              <a
-                href="https://primer.io/docs/connections/payment-methods/overview"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.docLinkBox}
-              >
-                🔗 View Payment Methods Documentation
-              </a>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PAYMENT METHODS\n━━━━━━━━━━━━━━━━━━━━\n'}{formatPaymentMethods()}</p>
+              <a href="https://primer.io/docs/connections/payment-methods/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View Payment Methods Documentation</a>
             </div>
-
             {/* PSPs */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'PSPs\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {formatPSPs()}
-              </p>
-              <a
-                href="https://primer.io/docs/connections/payment-methods/overview"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.docLinkBox}
-              >
-                🔗 View PSP Documentation
-              </a>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PSPs\n━━━━━━━━━━━━━━━━━━━━\n'}{formatPSPs()}</p>
+              <a href="https://primer.io/docs/connections/payment-methods/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View PSP Documentation</a>
             </div>
-
-            {/* 3DS Strategies */}
+            {/* 3DS */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'3DS STRATEGIES\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {format3DSStrategy()}
-              </p>
-              <a
-                href="https://primer.io/docs/payment-services/3d-secure/overview"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.docLinkBox}
-              >
-                🔗 View 3DS Documentation
-              </a>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'3DS STRATEGIES\n━━━━━━━━━━━━━━━━━━━━\n'}{format3DSStrategy()}</p>
+              <a href="https://primer.io/docs/payment-services/3d-secure/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View 3DS Documentation</a>
             </div>
-
-            {/* Purchase Channels & Flows */}
+            {/* Channels */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'PURCHASE CHANNELS & FLOWS\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {formatChannelsAndFlows()}
-              </p>
-              <a
-                href="https://web-components.primer.io/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.docLinkBox}
-              >
-                🔗 View Web Components Documentation
-              </a>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PURCHASE CHANNELS & FLOWS\n━━━━━━━━━━━━━━━━━━━━\n'}{formatChannelsAndFlows()}</p>
+              <a href="https://web-components.primer.io/" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View Web Components Documentation</a>
             </div>
-
             {/* Token Migration */}
             <div className={styles.summarySection}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {'TOKEN MIGRATION\n━━━━━━━━━━━━━━━━━━━━\n'}
-                {formatTokenMigration()}
-              </p>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'TOKEN MIGRATION\n━━━━━━━━━━━━━━━━━━━━\n'}{formatTokenMigration()}</p>
             </div>
           </div>
-        ) : selectedCategory === 'onboardingGuide' ? (
+        )}
+
+        {/* ── Merchant SOW view (read-only, no SE controls) ── */}
+        {selectedCategory === 'merchantSOW' && (
+          <div className={styles.contentBody}>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'GO LIVE DATE\n━━━━━━━━━━━━━━━━━━━━\n'}{formatDate(displayData.goLiveDate)}</p>
+            </div>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PAYMENT METHODS\n━━━━━━━━━━━━━━━━━━━━\n'}{formatPaymentMethods()}</p>
+              <a href="https://primer.io/docs/connections/payment-methods/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View Payment Methods Documentation</a>
+            </div>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PSPs\n━━━━━━━━━━━━━━━━━━━━\n'}{formatPSPs()}</p>
+              <a href="https://primer.io/docs/connections/payment-methods/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View PSP Documentation</a>
+            </div>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'3DS STRATEGIES\n━━━━━━━━━━━━━━━━━━━━\n'}{format3DSStrategy()}</p>
+              <a href="https://primer.io/docs/payment-services/3d-secure/overview" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View 3DS Documentation</a>
+            </div>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'PURCHASE CHANNELS & FLOWS\n━━━━━━━━━━━━━━━━━━━━\n'}{formatChannelsAndFlows()}</p>
+              <a href="https://web-components.primer.io/" target="_blank" rel="noopener noreferrer" className={styles.docLinkBox}>🔗 View Web Components Documentation</a>
+            </div>
+            <div className={styles.summarySection}>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{'TOKEN MIGRATION\n━━━━━━━━━━━━━━━━━━━━\n'}{formatTokenMigration()}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── SE Onboarding Guide (editable) ── */}
+        {selectedCategory === 'onboardingGuide' && (
           <div className={styles.guideContainer}>
-            {/* SE Contact bar */}
             {userRole === 'se' && (
               <div className={styles.guideSeContact}>
                 <span className={styles.guideSeContactLabel}>SE Contact:</span>
@@ -2824,69 +2787,58 @@ function OutputView({
                 />
               </div>
             )}
-
-            {/* Guide sections */}
             {GUIDE_SECTIONS.map(section => {
               const visible = isGuideSectionVisible(section);
               const isEditing = editingGuideSection === section.id;
               const content = getGuideContent(section);
               const isAutoHidden = !section.showByDefault(displayData);
-
               return (
-                <div
-                  key={section.id}
-                  className={`${styles.guideSectionCard} ${!visible ? styles.guideSectionHidden : ''}`}
-                >
-                  {/* Section header */}
+                <div key={section.id} className={`${styles.guideSectionCard} ${!visible ? styles.guideSectionHidden : ''}`}>
                   <div className={styles.guideSectionHeader}>
                     <h3 className={styles.guideSectionTitle}>{section.title}</h3>
-                    {userRole === 'se' && (
-                      <div className={styles.guideSectionActions}>
-                        {isAutoHidden && !visible && (
-                          <span className={styles.guideAutoHiddenBadge}>auto-hidden by SOW</span>
-                        )}
+                    <div className={styles.guideSectionActions}>
+                      {isAutoHidden && !visible && (
+                        <span className={styles.guideAutoHiddenBadge}>auto-hidden by SOW</span>
+                      )}
+                      <button
+                        className={`${styles.guideVisibilityBtn} ${visible ? styles.guideVisibilityBtnActive : ''}`}
+                        title={visible ? 'Hide this section' : 'Show this section'}
+                        onClick={() => updateGuideCustomization(section.id, { isVisible: !visible })}
+                      >
+                        {visible ? '👁 Visible' : '🚫 Hidden'}
+                      </button>
+                      {visible && !isEditing && (
                         <button
-                          className={`${styles.guideVisibilityBtn} ${visible ? styles.guideVisibilityBtnActive : ''}`}
-                          title={visible ? 'Hide this section' : 'Show this section'}
-                          onClick={() => updateGuideCustomization(section.id, { isVisible: !visible })}
+                          className={styles.guideEditBtn}
+                          onClick={() => {
+                            setEditingGuideSection(section.id);
+                            setEditGuideSectionContent(content);
+                          }}
                         >
-                          {visible ? '👁 Visible' : '🚫 Hidden'}
+                          ✏️ Edit
                         </button>
-                        {visible && !isEditing && (
+                      )}
+                      {visible && isEditing && (
+                        <>
                           <button
-                            className={styles.guideEditBtn}
+                            className={styles.guideSaveBtn}
                             onClick={() => {
-                              setEditingGuideSection(section.id);
-                              setEditGuideSectionContent(content);
+                              updateGuideCustomization(section.id, { customContent: editGuideSectionContent });
+                              setEditingGuideSection(null);
                             }}
                           >
-                            ✏️ Edit
+                            ✓ Save
                           </button>
-                        )}
-                        {visible && isEditing && (
-                          <>
-                            <button
-                              className={styles.guideSaveBtn}
-                              onClick={() => {
-                                updateGuideCustomization(section.id, { customContent: editGuideSectionContent });
-                                setEditingGuideSection(null);
-                              }}
-                            >
-                              ✓ Save
-                            </button>
-                            <button
-                              className={styles.guideCancelBtn}
-                              onClick={() => setEditingGuideSection(null)}
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                          <button
+                            className={styles.guideCancelBtn}
+                            onClick={() => setEditingGuideSection(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Section content */}
                   {visible && (
                     isEditing ? (
                       <textarea
@@ -2903,25 +2855,20 @@ function OutputView({
               );
             })}
           </div>
-        ) : (
-          <>
-            <div className={styles.contentBody}>
-              <p style={{ whiteSpace: 'pre-wrap' }}>
-                {categoryContent[selectedCategory].content}
-              </p>
-            </div>
+        )}
 
-            {categoryContent[selectedCategory].docLink && (
-              <a
-                href={categoryContent[selectedCategory].docLink.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.docLinkBox}
-              >
-                {categoryContent[selectedCategory].docLink.label}
-              </a>
-            )}
-          </>
+        {/* ── Merchant Onboarding Guide (read-only) ── */}
+        {selectedCategory === 'merchantGuide' && (
+          <div className={styles.guideContainer}>
+            {GUIDE_SECTIONS.filter(section => isGuideSectionVisible(section)).map(section => (
+              <div key={section.id} className={styles.guideSectionCard}>
+                <div className={styles.guideSectionHeader}>
+                  <h3 className={styles.guideSectionTitle}>{section.title}</h3>
+                </div>
+                <pre className={styles.guideSectionContent}>{getGuideContent(section)}</pre>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Additional Notes Section */}
@@ -2970,11 +2917,11 @@ function OutputView({
       {/* Right Sidebar - Versions */}
       <aside className={styles.versionSidebar}>
         <h3 className={styles.versionSidebarTitle}>
-          {selectedCategory === 'merchantSummary' ? 'Published Versions' : 'Version History'}
+          {userRole === 'merchant' ? 'Published Versions' : 'Version History'}
         </h3>
 
         {/* Push to Merchant button for SEs */}
-        {userRole === 'se' && selectedCategory === 'summary' && currentVersion && (
+        {userRole === 'se' && currentVersion && (
           <button
             className={styles.pushToMerchantButton}
             onClick={() => {
@@ -2991,13 +2938,13 @@ function OutputView({
         <div className={styles.versionList}>
           {(() => {
             // Filter versions based on page
-            const displayVersions = selectedCategory === 'merchantSummary'
+            const displayVersions = userRole === 'merchant'
               ? versions.filter(v => v.publishedToMerchant)
               : versions;
 
             if (displayVersions.length === 0) {
               return <div className={styles.noVersions}>
-                {selectedCategory === 'merchantSummary' ? 'No published versions yet' : 'No versions yet'}
+                {userRole === 'merchant' ? 'No published versions yet' : 'No versions yet'}
               </div>;
             }
 

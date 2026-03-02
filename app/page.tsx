@@ -243,6 +243,334 @@ const PSPS = [
 
 type UserRole = 'merchant' | 'bdr-bdm' | 'se' | null;
 
+// ─── Onboarding Guide Types ───────────────────────────────────────────────────
+type GuideSectionCustomization = {
+  isVisible?: boolean;
+  customContent?: string;
+};
+
+type GuideCustomizations = {
+  [sectionId: string]: GuideSectionCustomization;
+};
+
+type GuideCtx = {
+  merchantName: string;
+  seContact: string;
+  seEmail: string;
+};
+
+type GuideSectionDef = {
+  id: string;
+  title: string;
+  defaultContent: (data: SOWData, ctx: GuideCtx) => string;
+  showByDefault: (data: SOWData) => boolean;
+};
+
+// ─── PSP / APM helpers ────────────────────────────────────────────────────────
+const getPSPCredentials = (psp: string): string => {
+  const creds: Record<string, string> = {
+    'Adyen': 'API Key, Merchant Account ID, Client Key, HMAC Key (webhooks)',
+    'Stripe': 'Secret Key, Publishable Key',
+    'Checkout.com': 'Secret Key, Public Key',
+    'Braintree': 'Merchant ID, Public Key, Private Key',
+    'Nuvei': 'Merchant ID, Merchant Site ID, Secret Key',
+    'WorldPay': 'Merchant Code, XML Username, XML Password',
+    'WorldPay VAP': 'Merchant Code, XML Username, XML Password',
+    'Cybersource': 'Merchant ID, API Key ID, Secret Key',
+    'Shift4': 'API Key, Merchant Account ID',
+    'Rapyd': 'Access Key, Secret Key',
+    'Mollie': 'API Key',
+    'Unlimint': 'Terminal ID, Password',
+    'Fiserv': 'API Key, API Secret, Merchant ID',
+    'JPMC': 'Merchant ID, API Key, API Secret',
+    'Nexi': 'Terminal ID, API Key',
+    'Nets Easy': 'Secret Key, Checkout Key',
+    'Monext': 'Access Key, Merchant ID',
+    'emerchantpay': 'Username, Password, Terminal Token',
+    'dLocal': 'API Key, Secret Key',
+    'Airwallex': 'Client ID, API Key',
+    'PayU LATAM': 'API Key, Merchant ID',
+    'Xendit': 'Secret Key',
+    'Fat Zebra': 'Username, Token',
+    'Iyzico': 'API Key, Secret Key',
+    'Omise': 'Secret Key, Public Key',
+  };
+  return creds[psp] || 'API credentials (contact your provider for sandbox details)';
+};
+
+const getAPMSetupNote = (pm: string): string => {
+  const notes: Record<string, string> = {
+    'PayPal': "Client ID and Client Secret from your PayPal developer account.",
+    'Apple Pay': "Apple Pay merchant certificate — upload in Primer under Integrations.",
+    'Google Pay': "Google Pay Merchant ID — configure in Primer under Integrations.",
+    'Klarna': "Klarna API Key. Klarna supports auth-then-capture for physical goods.",
+    'Afterpay': "Afterpay Merchant ID and Secret Key.",
+    'Clearpay': "Clearpay Merchant ID and Secret Key.",
+    'ACH': "ACH requires additional KYC. Contact your Primer SE to enable.",
+    'iDEAL': "Routed through your card processor (if supported) or connected directly.",
+    'Bancontact': "Connect via your card processor or directly through Integrations.",
+    'Alipay': "Contact your Primer SE for setup guidance.",
+    'Alipay+': "Contact your Primer SE for setup guidance.",
+    'WeChat Pay': "Contact your Primer SE for setup guidance.",
+    'Trustly': "Trustly merchant credentials from your Trustly account.",
+    'Swish': "Requires a Swish merchant agreement.",
+    'Twint': "Twint merchant credentials.",
+    'Vipps': "Vipps merchant credentials.",
+    'Mobilepay': "MobilePay merchant credentials.",
+    'P24': "P24 Merchant ID and API key.",
+    'EPS': "Routed through your card processor (if supported).",
+    'Bancontact Payconiq': "Merchant credentials from Payconiq.",
+    'Venmo': "Connected via PayPal integration — enable in PayPal settings.",
+  };
+  return notes[pm] || "Connect via Integrations → search for the payment method and follow the setup steps.";
+};
+
+// ─── Guide Section Definitions ────────────────────────────────────────────────
+const GUIDE_SECTIONS: GuideSectionDef[] = [
+  {
+    id: 'welcome',
+    title: 'Introduction',
+    defaultContent: (data, ctx) => {
+      const psps = [...data.newPSPs, ...(data.newPSPsOther ? [data.newPSPsOther] : [])];
+      const pms = [...data.newPaymentMethods, ...(data.newPaymentMethodsOther ? [data.newPaymentMethodsOther] : [])];
+      const pspText = psps.length > 0 ? psps.join(', ') : 'your payment processors';
+      const pmText = pms.length > 0 ? pms.join(', ') : 'your payment methods';
+      return `Welcome to Primer, ${ctx.merchantName || 'your team'}!\n\nThis guide walks your engineering team through every step to get your payment integration live. Follow each section in order — by the end, you'll have a fully working checkout with ${pmText} connected through ${pspText}.\n\nSandbox Dashboard: https://sandbox-dashboard.primer.io`;
+    },
+    showByDefault: () => true,
+  },
+  {
+    id: 'sandbox',
+    title: 'Step 1: Access the Sandbox',
+    defaultContent: () =>
+      `We've sent an invitation to your team's email address. Click the link in the email to create your Primer Sandbox account.\n\nSandbox Dashboard: https://sandbox-dashboard.primer.io\n\nOnce you accept the invite, you'll land on the Primer Dashboard where you can configure everything before going live.`,
+    showByDefault: () => true,
+  },
+  {
+    id: 'apiKey',
+    title: 'Step 2: Create an API Key',
+    defaultContent: () =>
+      `You'll need an API key to authenticate all server-side requests.\n\n1. Go to Developers → API Keys in the sidebar\n   https://sandbox-dashboard.primer.io/developers/apiKeys\n2. Click Create API Key\n3. Give it a name (e.g. your-company-sandbox)\n4. Copy and securely store the key — you won't be able to see it again\n\nUse this key in the X-Api-Key header for all server-side calls.\nDocs: https://primer.io/docs/api-reference/get-started/authentication`,
+    showByDefault: () => true,
+  },
+  {
+    id: 'connectProcessors',
+    title: 'Step 3: Connect Your Payment Processors',
+    defaultContent: (data) => {
+      const psps = [...data.newPSPs, ...(data.newPSPsOther ? [data.newPSPsOther] : [])];
+      if (psps.length === 0) {
+        return `Connect the processors you'll use through Primer. Go to Integrations in the sidebar.\n\n1. Search for your processor and click Connect\n2. Enter your sandbox credentials\n3. Click Save\n\nDocs: https://primer.io/docs/connections/payment-methods/overview`;
+      }
+      const rows = psps.map(psp => `| ${psp} | ${getPSPCredentials(psp)} |`).join('\n');
+      return `Connect the following processors through Primer. Go to Integrations in the sidebar.\n\n| Processor | Credentials Needed |\n|-----------|-------------------|\n${rows}\n\n1. Search for each processor and click Connect\n2. Enter your sandbox credentials\n3. You may need multiple connections for separate MIDs (per region or brand) — each can be added as a separate connection\n\nDocs: https://primer.io/docs/connections/payment-methods/overview`;
+    },
+    showByDefault: () => true,
+  },
+  {
+    id: 'connectAPMs',
+    title: 'Step 3b: Connect Alternative Payment Methods',
+    defaultContent: (data) => {
+      const apms = [...data.newPaymentMethods.filter(pm => pm !== 'Card'), ...(data.newPaymentMethodsOther ? [data.newPaymentMethodsOther] : [])];
+      if (apms.length === 0) return `Connect your alternative payment methods through Integrations.\n\nDocs: https://primer.io/docs/connections/payment-methods/overview`;
+      const notes = apms.map(pm => `${pm}\n${getAPMSetupNote(pm)}`).join('\n\n');
+      return `Connect the following alternative payment methods via Integrations → search for each method.\n\n${notes}\n\nDocs: https://primer.io/docs/connections/payment-methods/overview`;
+    },
+    showByDefault: (data) =>
+      data.newPaymentMethods.filter(pm => pm !== 'Card').length > 0 || !!data.newPaymentMethodsOther,
+  },
+  {
+    id: 'buildWorkflows',
+    title: 'Step 4: Build Your Payment Workflows',
+    defaultContent: (data) => {
+      const psps = [...data.newPSPs, ...(data.newPSPsOther ? [data.newPSPsOther] : [])];
+      const primary = psps[0] || 'your primary processor';
+      const fallback = psps[1] || null;
+      const hasRecurring = data.recurringPayments === 'yes' || data.transactionFlows.some(f => f.includes('MIT'));
+      const has3DS = data.has3DSStrategy === 'yes';
+
+      let out = `Workflows define how Primer routes and processes payments. Go to Workflows in the sidebar.\n\nDocs: https://primer.io/docs/build/workflows\n\n`;
+      out += `Recommended Workflow — Card Payments (CIT)\n\nTrigger: Card payment (CIT)\n    │\n`;
+      out += has3DS ? `    ├─ 3D Secure → ${primary}\n` : `    ├─ ${primary}\n`;
+      out += `    │      │\n    │      ├─ Success ✓\n`;
+      out += fallback
+        ? `    │      └─ Decline → ${fallback}\n    │                   │\n    │                   ├─ Success ✓\n    │                   └─ Decline ✗\n`
+        : `    │      └─ Decline ✗\n`;
+
+      if (hasRecurring) {
+        out += `\nRecommended Workflow — Recurring Payments (MIT)\n\nTrigger: Card payment (MIT)\n    │\n    ├─ ${primary} (no 3DS)\n    │      │\n    │      ├─ Success ✓\n`;
+        out += fallback
+          ? `    │      └─ Decline → ${fallback}\n    │                   │\n    │                   ├─ Success ✓\n    │                   └─ Decline ✗\n`
+          : `    │      └─ Decline ✗\n`;
+      }
+      out += `\nBuild and customise all workflows visually in the drag-and-drop workflow builder.`;
+      return out;
+    },
+    showByDefault: () => true,
+  },
+  {
+    id: 'checkoutBuilder',
+    title: 'Step 5: Configure Checkout Builder',
+    defaultContent: (data) => {
+      const pms = [...data.newPaymentMethods, ...(data.newPaymentMethodsOther ? [data.newPaymentMethodsOther] : [])];
+      const rows = pms.length > 0
+        ? pms.map(pm => `| ${pm} | Configure display rules and conditions |`).join('\n')
+        : '| Cards | Always visible |\n| (add your payment methods) | Configure rules |';
+      return `Checkout Builder controls which payment methods appear to customers — no code required.\n\nDocs: https://primer.io/docs/checkout/checkout-builder\n\n1. Go to Checkout in the sidebar\n2. Enable and configure:\n\n| Payment Method | Notes |\n|---------------|-------|\n${rows}\n\n3. Drag and drop to set display order\n4. Set conditions (e.g. show Klarna only for EU countries)\n5. Click Publish — changes take effect immediately, no deployment needed`;
+    },
+    showByDefault: () => true,
+  },
+  {
+    id: 'clientSession',
+    title: 'Step 6: Create a Client Session',
+    defaultContent: () =>
+      `Before showing checkout to a customer, your server creates a Client Session. This tells Primer about the order and returns a clientToken for the front-end.\n\nDocs: https://primer.io/docs/checkout/client-session\n\ncurl -X POST https://api.sandbox.primer.io/client-session \\\n  -H "X-Api-Key: <YOUR_API_KEY>" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "orderId": "order-123",\n    "currencyCode": "USD",\n    "amount": 2999,\n    "order": {\n      "lineItems": [{\n        "itemId": "item-1",\n        "description": "Product Name",\n        "amount": 2999,\n        "quantity": 1\n      }]\n    },\n    "customer": {\n      "emailAddress": "customer@example.com"\n    }\n  }'\n\nResponse:\n{\n  "clientToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",\n  "clientTokenExpirationDate": "2026-01-01T12:00:00Z"\n}\n\nThe token expires after 24 hours. Create a new one per checkout session.`,
+    showByDefault: () => true,
+  },
+  {
+    id: 'checkoutSDKWeb',
+    title: 'Step 7: Integrate the Checkout SDK — Web',
+    defaultContent: () =>
+      `Add Primer's Universal Checkout to your web front-end.\n\nDocs: https://primer.io/docs/get-started/set-up-a-checkout\n\n<div id="checkout-container"></div>\n\n<script src="https://sdk.primer.io/web/v2/Primer.min.js"></script>\n<script>\n  const primer = await Primer.showUniversalCheckout(clientToken, {\n    container: '#checkout-container',\n    onCheckoutComplete({ payment }) {\n      console.log('Payment successful:', payment.id);\n      // Redirect to order confirmation\n    },\n    onCheckoutFail(error, { payment }) {\n      console.error('Payment failed:', error);\n      // Show error to customer\n    }\n  });\n</script>\n\nPrimer's Universal Checkout renders all configured payment methods through a single integration.`,
+    showByDefault: (data) =>
+      data.channels.length === 0 || data.channels.some(c => c.includes('Online') || c.includes('Web')),
+  },
+  {
+    id: 'checkoutSDKMobile',
+    title: 'Step 7b: Mobile SDK Integration',
+    defaultContent: (data) => {
+      const hasWebView = data.channels.some(c => c.includes('Web View'));
+      const hasNative = data.channels.some(c => c.includes('iOS') || c.includes('Android') || c.includes('Apps'));
+      let out = `Docs: https://primer.io/docs/get-started/set-up-a-checkout\n\n`;
+      if (hasWebView) {
+        out += `Mobile Web View\n\nLoad the checkout page (containing the Primer Web SDK) in a web view:\n• iOS: Use ASWebAuthenticationSession or WKWebView\n• Android: Use Chrome Custom Tabs or WebView\n\nApple Pay works natively on iOS within web views. Redirects for other payment methods are handled seamlessly.\n\n`;
+      }
+      if (hasNative) {
+        out += `Native SDK\n\nFor native iOS/Android apps, use the Primer native SDK:\n• iOS: https://primer.io/docs/sdks/ios\n• Android: https://primer.io/docs/sdks/android\n• React Native: https://primer.io/docs/sdks/react-native\n\n`;
+      }
+      out += `Contact your Primer SE for guidance on the best mobile integration approach for your setup.`;
+      return out;
+    },
+    showByDefault: (data) => data.channels.some(c => c.includes('Mobile')),
+  },
+  {
+    id: 'recurringMIT',
+    title: 'Step 8: Recurring & Merchant-Initiated Payments',
+    defaultContent: (data) => {
+      const psps = [...data.newPSPs, ...(data.newPSPsOther ? [data.newPSPsOther] : [])];
+      const primary = psps[0] || 'your processor';
+      const platform = data.subscriptionPlatform && data.subscriptionPlatform !== 'no' ? data.subscriptionPlatform : null;
+      return `For recurring payments, use the Primer Payments API with a stored paymentMethodToken.\n\nDocs: https://primer.io/docs/api-reference\n\n${platform ? `Note: Your subscription platform (${platform}) will trigger MIT payments via the Primer API.\n\n` : ''}When a customer completes their first payment, Primer vaults their card. Store the returned paymentMethodToken securely for future charges.\n\nMIT API call (subscription renewal):\n\ncurl -X POST https://api.sandbox.primer.io/payments \\\n  -H "X-Api-Key: <YOUR_API_KEY>" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "orderId": "renewal-456",\n    "currencyCode": "USD",\n    "amount": 2999,\n    "paymentMethodToken": "<STORED_TOKEN>",\n    "customer": { "emailAddress": "customer@example.com" }\n  }'\n\nNo 3DS for MIT — the customer is not present. Primer routes the payment through your MIT workflow via ${primary}.`;
+    },
+    showByDefault: (data) =>
+      data.recurringPayments === 'yes' || data.transactionFlows.some(f => f.includes('MIT')),
+  },
+  {
+    id: 'tokenMigration',
+    title: 'Step 9: Token Migration',
+    defaultContent: (data) => {
+      const entries = data.tokenMigrationEntries.filter(e => e.psp);
+      const total = entries.reduce((sum, e) => sum + (parseInt(e.tokenCount) || 0), 0);
+      let out = `Token migration moves your existing vaulted payment methods to Primer so customers don't need to re-enter their details at go-live.\n\nDocs: https://primer.io/docs/features/vault/token-migration\n\n`;
+      if (entries.length > 0) {
+        out += `Tokens to migrate:\n`;
+        entries.forEach(e => { out += `• ${e.psp}: ${parseInt(e.tokenCount).toLocaleString()} tokens\n`; });
+        if (total > 0) out += `Total: ${total.toLocaleString()} tokens\n\n`;
+      }
+      out += `Migration steps:\n1. Export your token file from each PSP in the required format\n2. Share the encrypted token file with your Primer SE\n3. Primer validates the migration in sandbox first\n4. Production migration is scheduled close to go-live\n\nImportant: Notify and align with your Primer SE before starting the migration process.`;
+      return out;
+    },
+    showByDefault: (data) => data.tokenMigrationRequired === 'yes',
+  },
+  {
+    id: 'threeDSConfig',
+    title: 'Step 10: 3DS Configuration',
+    defaultContent: (data) => {
+      const strategy = data.threeDSStrategy === 'mandated' ? 'Mandated 3DS'
+        : data.threeDSStrategy === 'adaptive' ? 'Adaptive 3DS'
+        : data.threeDSStrategyOther || 'your 3DS strategy';
+      return `Docs: https://primer.io/docs/payment-services/3d-secure/overview\n\nYour 3DS strategy: ${strategy}\n\nTo enable 3DS for your processors, provide the Primer team with:\n• Acquirer MIDs for each supported card scheme per PSP\n• BINs for each supported card scheme per PSP\n• MCC codes from each PSP (if not yet provided)\n\nRequest these from each processor and share them with your Primer SE.\n\n${data.threeDSStrategy === 'adaptive' ? 'Adaptive 3DS challenges transactions based on risk signals — minimising friction for low-risk transactions while maintaining compliance.' : ''}${data.threeDSStrategy === 'mandated' ? 'Mandated 3DS applies authentication to all applicable transactions. Add a 3D Secure node to your CIT workflows.' : ''}`;
+    },
+    showByDefault: (data) => data.has3DSStrategy === 'yes',
+  },
+  {
+    id: 'networkTokenization',
+    title: 'Step 11: Network Tokenisation',
+    defaultContent: () =>
+      `Network Tokens replace raw card numbers with credentials issued by card networks (Visa, Mastercard). This typically improves authorisation rates by 2–5% and reduces declines from card expiry.\n\nDocs: https://primer.io/docs/features/network-tokens\n\n1. Go to Settings → Network Tokenisation in the sidebar\n2. Enable Network Tokenisation for your processors\n3. Primer automatically requests and manages tokens for eligible cards\n4. Add a Network Token step in your MIT workflows to prioritise tokenised transactions\n\nTransparent to customers — no UX change, better auth rates on your side.`,
+    showByDefault: () => true,
+  },
+  {
+    id: 'refunds',
+    title: 'Step 12: Refunds',
+    defaultContent: () =>
+      `Refunds can be triggered via the Primer API or directly from the Dashboard.\n\nDocs: https://primer.io/docs/api-reference\n\nAPI Refund:\n\ncurl -X POST https://api.sandbox.primer.io/payments/<PAYMENT_ID>/refund \\\n  -H "X-Api-Key: <YOUR_API_KEY>" \\\n  -H "Content-Type: application/json" \\\n  -d '{ "amount": 2999, "reason": "Customer requested refund" }'\n\nDashboard: Payments → find the transaction → click Refund\n\nPrimer routes refunds to the original processor automatically. Both full and partial refunds are supported.`,
+    showByDefault: () => true,
+  },
+  {
+    id: 'goLiveChecklist',
+    title: 'Go-Live Checklist',
+    defaultContent: (data) => {
+      const psps = [...data.newPSPs, ...(data.newPSPsOther ? [data.newPSPsOther] : [])];
+      const apms = [...data.newPaymentMethods.filter(pm => pm !== 'Card'), ...(data.newPaymentMethodsOther ? [data.newPaymentMethodsOther] : [])];
+      const hasRecurring = data.recurringPayments === 'yes' || data.transactionFlows.some(f => f.includes('MIT'));
+      const has3DS = data.has3DSStrategy === 'yes';
+      const hasMobile = data.channels.some(c => c.includes('Mobile'));
+      const hasWeb = data.channels.length === 0 || data.channels.some(c => c.includes('Online') || c.includes('Web'));
+      const hasTokenMigration = data.tokenMigrationRequired === 'yes';
+
+      let list = `Setup\n`;
+      list += `☐ Sandbox invite accepted\n☐ API key created\n`;
+      psps.forEach(p => { list += `☐ ${p} connected with sandbox credentials\n`; });
+      apms.forEach(pm => { list += `☐ ${pm} connected\n`; });
+
+      list += `\nWorkflows & Checkout\n`;
+      list += `☐ CIT workflow built and tested\n`;
+      if (hasRecurring) list += `☐ MIT workflow built and tested\n`;
+      list += `☐ Checkout Builder configured and published\n`;
+
+      list += `\nIntegration\n`;
+      list += `☐ Client session creation working from your server\n`;
+      if (hasWeb) list += `☐ Web SDK rendering correctly\n`;
+      if (hasMobile) list += `☐ Mobile integration tested\n`;
+      if (hasRecurring) list += `☐ MIT payments triggering correctly for renewals\n`;
+
+      list += `\nTesting\n`;
+      if (has3DS) list += `☐ 3DS flow tested (challenge and frictionless)\n`;
+      list += `☐ Successful payment end-to-end in sandbox\n`;
+      list += `☐ Failed payment handling tested\n`;
+      list += `☐ Refund flow tested\n`;
+      list += `☐ Webhooks configured and receiving events\n`;
+
+      if (hasTokenMigration) {
+        list += `\nToken Migration\n`;
+        list += `☐ Token export from previous PSP(s) completed\n`;
+        list += `☐ Token file shared with Primer SE\n`;
+        list += `☐ Sandbox migration validated\n`;
+        list += `☐ Production migration scheduled\n`;
+      }
+
+      list += `\nGo-Live\n`;
+      list += `☐ Network Tokenisation enabled\n`;
+      list += `☐ Production API key created\n`;
+      list += `☐ Production processor credentials connected\n`;
+      list += `☐ Checkout Builder published in production\n`;
+      if (data.goLiveDate) {
+        const d = new Date(data.goLiveDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        list += `☐ Go-live confirmed: ${d}\n`;
+      }
+      return list;
+    },
+    showByDefault: () => true,
+  },
+  {
+    id: 'needHelp',
+    title: 'Need Help?',
+    defaultContent: (data, ctx) =>
+      `Your Primer SE is here to support you through every step of the integration.\n\n${ctx.seContact ? `Solutions Engineer: ${ctx.seContact}${ctx.seEmail ? ` — ${ctx.seEmail}` : ''}` : 'Contact your Primer Solutions Engineer for technical questions, integration blockers, or to schedule a working session.'}\n\nReach out with any questions about workflow design, 3DS configuration, token migration, or connecting a new processor.`,
+    showByDefault: () => true,
+  },
+];
+
 type SOWVersion = {
   id: string;
   version: string;
@@ -256,6 +584,9 @@ type SOWVersion = {
   emailedTo?: string;
   emailedDate?: string;
   publishedToMerchant?: boolean;
+  guideCustomizations?: GuideCustomizations;
+  seContact?: string;
+  seEmail?: string;
 };
 
 export default function Home() {
@@ -1483,6 +1814,8 @@ function OutputView({
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportType, setExportType] = useState<'pdf' | 'json'>('pdf');
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [editingGuideSection, setEditingGuideSection] = useState<string | null>(null);
+  const [editGuideSectionContent, setEditGuideSectionContent] = useState('');
 
   const currentVersion = versions.find(v => v.id === selectedVersionId) || versions[versions.length - 1];
   const seReviewed = currentVersion?.seReviewed || false;
@@ -2082,6 +2415,50 @@ function OutputView({
     return sections.join('\n');
   };
 
+  // ─── Guide helpers ────────────────────────────────────────────────────────
+  const guideCtx: GuideCtx = {
+    merchantName: currentVersion?.merchantName || '',
+    seContact: currentVersion?.seContact || '',
+    seEmail: currentVersion?.seEmail || '',
+  };
+
+  const getGuideContent = (section: GuideSectionDef): string => {
+    const custom = currentVersion?.guideCustomizations?.[section.id];
+    if (custom?.customContent !== undefined) return custom.customContent;
+    return section.defaultContent(displayData, guideCtx);
+  };
+
+  const isGuideSectionVisible = (section: GuideSectionDef): boolean => {
+    const custom = currentVersion?.guideCustomizations?.[section.id];
+    if (custom?.isVisible !== undefined) return custom.isVisible;
+    return section.showByDefault(displayData);
+  };
+
+  const updateGuideCustomization = (sectionId: string, updates: Partial<GuideSectionCustomization>) => {
+    const updatedVersions = versions.map(v =>
+      v.id === selectedVersionId
+        ? {
+            ...v,
+            guideCustomizations: {
+              ...v.guideCustomizations,
+              [sectionId]: {
+                ...v.guideCustomizations?.[sectionId],
+                ...updates,
+              },
+            },
+          }
+        : v
+    );
+    onVersionsUpdate(updatedVersions);
+  };
+
+  const updateSEContact = (field: 'seContact' | 'seEmail', value: string) => {
+    const updatedVersions = versions.map(v =>
+      v.id === selectedVersionId ? { ...v, [field]: value } : v
+    );
+    onVersionsUpdate(updatedVersions);
+  };
+
   const categoryContent: Record<string, any> = {
     summary: {
       title: 'Summary',
@@ -2092,6 +2469,12 @@ function OutputView({
     merchantSummary: {
       title: 'Merchant Summary',
       content: formatSummary(),
+      docLink: null,
+      notesField: null,
+    },
+    onboardingGuide: {
+      title: 'Onboarding Guide',
+      content: null,
       docLink: null,
       notesField: null,
     },
@@ -2420,6 +2803,105 @@ function OutputView({
                 {formatTokenMigration()}
               </p>
             </div>
+          </div>
+        ) : selectedCategory === 'onboardingGuide' ? (
+          <div className={styles.guideContainer}>
+            {/* SE Contact bar */}
+            {userRole === 'se' && (
+              <div className={styles.guideSeContact}>
+                <span className={styles.guideSeContactLabel}>SE Contact:</span>
+                <input
+                  className={styles.guideSeContactInput}
+                  placeholder="Your name"
+                  value={currentVersion?.seContact || ''}
+                  onChange={e => updateSEContact('seContact', e.target.value)}
+                />
+                <input
+                  className={styles.guideSeContactInput}
+                  placeholder="your@email.com"
+                  value={currentVersion?.seEmail || ''}
+                  onChange={e => updateSEContact('seEmail', e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Guide sections */}
+            {GUIDE_SECTIONS.map(section => {
+              const visible = isGuideSectionVisible(section);
+              const isEditing = editingGuideSection === section.id;
+              const content = getGuideContent(section);
+              const isAutoHidden = !section.showByDefault(displayData);
+
+              return (
+                <div
+                  key={section.id}
+                  className={`${styles.guideSectionCard} ${!visible ? styles.guideSectionHidden : ''}`}
+                >
+                  {/* Section header */}
+                  <div className={styles.guideSectionHeader}>
+                    <h3 className={styles.guideSectionTitle}>{section.title}</h3>
+                    {userRole === 'se' && (
+                      <div className={styles.guideSectionActions}>
+                        {isAutoHidden && !visible && (
+                          <span className={styles.guideAutoHiddenBadge}>auto-hidden by SOW</span>
+                        )}
+                        <button
+                          className={`${styles.guideVisibilityBtn} ${visible ? styles.guideVisibilityBtnActive : ''}`}
+                          title={visible ? 'Hide this section' : 'Show this section'}
+                          onClick={() => updateGuideCustomization(section.id, { isVisible: !visible })}
+                        >
+                          {visible ? '👁 Visible' : '🚫 Hidden'}
+                        </button>
+                        {visible && !isEditing && (
+                          <button
+                            className={styles.guideEditBtn}
+                            onClick={() => {
+                              setEditingGuideSection(section.id);
+                              setEditGuideSectionContent(content);
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
+                        {visible && isEditing && (
+                          <>
+                            <button
+                              className={styles.guideSaveBtn}
+                              onClick={() => {
+                                updateGuideCustomization(section.id, { customContent: editGuideSectionContent });
+                                setEditingGuideSection(null);
+                              }}
+                            >
+                              ✓ Save
+                            </button>
+                            <button
+                              className={styles.guideCancelBtn}
+                              onClick={() => setEditingGuideSection(null)}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section content */}
+                  {visible && (
+                    isEditing ? (
+                      <textarea
+                        className={styles.guideSectionEditor}
+                        value={editGuideSectionContent}
+                        onChange={e => setEditGuideSectionContent(e.target.value)}
+                        rows={Math.max(8, content.split('\n').length + 2)}
+                      />
+                    ) : (
+                      <pre className={styles.guideSectionContent}>{content}</pre>
+                    )
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <>

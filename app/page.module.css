@@ -1367,6 +1367,51 @@
   color: var(--text-primary);
 }
 
+/* ─── Merchant Preview Toggle ─────────────────────────────────────────────── */
+.merchantPreviewToggle {
+  display: block;
+  width: calc(100% - 2rem);
+  margin: 0.75rem 1rem 0;
+  padding: 0.55rem 1rem;
+  background: white;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #294C46;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.merchantPreviewToggle:hover {
+  background: #EFF6F5;
+  border-color: var(--primary);
+}
+
+.merchantPreviewToggleActive {
+  background: #294C46;
+  color: white;
+  border-color: #294C46;
+}
+
+.merchantPreviewToggleActive:hover {
+  background: #1e3830;
+}
+
+.merchantPreviewBanner {
+  margin: 0.5rem 1rem 0;
+  padding: 0.4rem 0.75rem;
+  background: #FFF3EE;
+  border: 1px solid #FFD5C0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #C05020;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
 /* ─── Onboarding Guide ────────────────────────────────────────────────────── */
 .guideContainer {
   display: flex;

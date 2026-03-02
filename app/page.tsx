@@ -1816,6 +1816,10 @@ function OutputView({
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingGuideSection, setEditingGuideSection] = useState<string | null>(null);
   const [editGuideSectionContent, setEditGuideSectionContent] = useState('');
+  const [merchantPreview, setMerchantPreview] = useState(false);
+
+  // Effective role — SEs can toggle into merchant preview mode
+  const effectiveRole = (userRole === 'se' && merchantPreview) ? 'merchant' : userRole;
 
   const currentVersion = versions.find(v => v.id === selectedVersionId) || versions[versions.length - 1];
   const seReviewed = currentVersion?.seReviewed || false;
@@ -2459,7 +2463,7 @@ function OutputView({
     onVersionsUpdate(updatedVersions);
   };
 
-  const categoryContent: Record<string, any> = userRole === 'merchant'
+  const categoryContent: Record<string, any> = effectiveRole === 'merchant'
     ? {
         merchantSOW: {
           title: 'SOW Summary',
@@ -2578,14 +2582,37 @@ function OutputView({
         <div className={styles.sidebarHeader}>
           <h2>SOW Builder</h2>
           <div className={styles.headerButtons}>
-            <button className={styles.editButton} onClick={onBackToEdit}>
-              ← SE Technical Review
-            </button>
+            {userRole === 'se' && (
+              <button className={styles.editButton} onClick={onBackToEdit}>
+                ← SE Technical Review
+              </button>
+            )}
             <button className={styles.exportButton} onClick={() => setShowExportDialog(true)}>
               📥 Export
             </button>
           </div>
         </div>
+
+        {/* Merchant Preview toggle — SE only */}
+        {userRole === 'se' && (
+          <button
+            className={`${styles.merchantPreviewToggle} ${merchantPreview ? styles.merchantPreviewToggleActive : ''}`}
+            onClick={() => {
+              const entering = !merchantPreview;
+              setMerchantPreview(entering);
+              setSelectedCategory(entering ? 'merchantSOW' : 'summary');
+            }}
+          >
+            {merchantPreview ? '← Back to SE View' : '👁 Preview as Merchant'}
+          </button>
+        )}
+
+        {merchantPreview && (
+          <div className={styles.merchantPreviewBanner}>
+            Merchant Preview — read-only
+          </div>
+        )}
+
         <nav className={styles.sidebarNav}>
           {Object.keys(categoryContent).map((key) => (
             <button
@@ -2603,8 +2630,8 @@ function OutputView({
 
       {/* Main Content */}
       <main className={styles.mainContent}>
-        {/* SE Tracking Section - Moved to top of main content (not shown on merchant summary) */}
-        {userRole === 'se' && (
+        {/* SE Tracking Section */}
+        {userRole === 'se' && !merchantPreview && (
           <div className={styles.seTrackingSectionMain}>
             <h3 className={styles.seTrackingTitleMain}>Status Tracking</h3>
 
@@ -2917,11 +2944,11 @@ function OutputView({
       {/* Right Sidebar - Versions */}
       <aside className={styles.versionSidebar}>
         <h3 className={styles.versionSidebarTitle}>
-          {userRole === 'merchant' ? 'Published Versions' : 'Version History'}
+          {effectiveRole === 'merchant' ? 'Published Versions' : 'Version History'}
         </h3>
 
-        {/* Push to Merchant button for SEs */}
-        {userRole === 'se' && currentVersion && (
+        {/* Push to Merchant button for SEs (not in preview mode) */}
+        {userRole === 'se' && !merchantPreview && currentVersion && (
           <button
             className={styles.pushToMerchantButton}
             onClick={() => {
@@ -2937,14 +2964,14 @@ function OutputView({
 
         <div className={styles.versionList}>
           {(() => {
-            // Filter versions based on page
-            const displayVersions = userRole === 'merchant'
+            // Filter versions based on effective role
+            const displayVersions = effectiveRole === 'merchant'
               ? versions.filter(v => v.publishedToMerchant)
               : versions;
 
             if (displayVersions.length === 0) {
               return <div className={styles.noVersions}>
-                {userRole === 'merchant' ? 'No published versions yet' : 'No versions yet'}
+                {effectiveRole === 'merchant' ? 'No published versions yet' : 'No versions yet'}
               </div>;
             }
 

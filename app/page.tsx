@@ -1691,13 +1691,9 @@ export default function Home() {
           <div className={styles.progressSteps}>
             {userRole === 'merchant' && (
               <div
-                className={`${styles.progressStep} ${
-                  0 <= currentStep ? styles.progressStepActive : ''
-                }`}
+                className={`${styles.progressStep} ${0 <= currentStep ? styles.progressStepActive : ''}`}
               >
-                <div className={styles.progressStepCircle}>
-                  {0 < currentStep ? '✓' : 1}
-                </div>
+                <div className={styles.progressStepCircle}>{0 < currentStep ? '✓' : 1}</div>
                 <span className={styles.progressStepLabel}>Merchant Name</span>
               </div>
             )}
@@ -1706,12 +1702,15 @@ export default function Home() {
                 .sort((a, b) => a.orderIndex - b.orderIndex)
                 .map((q, idx) => {
                   const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                  const isClickable = userRole === 'se';
                   return (
                     <div
                       key={q.id}
                       className={`${styles.progressStep} ${
                         displayIdx <= currentStep ? styles.progressStepActive : ''
-                      }`}
+                      } ${isClickable ? styles.progressStepClickable : ''}`}
+                      onClick={() => isClickable && setCurrentStep(displayIdx)}
+                      title={isClickable ? `Jump to Q${displayIdx + 1}` : undefined}
                     >
                       <div className={styles.progressStepCircle}>
                         {displayIdx < currentStep ? '✓' : displayIdx + 1}
@@ -1723,12 +1722,15 @@ export default function Home() {
             ) : schema ? (
               schema.steps.map((step, idx) => {
                 const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                const isClickable = userRole === 'se';
                 return (
                   <div
                     key={step.id}
                     className={`${styles.progressStep} ${
                       displayIdx <= currentStep ? styles.progressStepActive : ''
-                    }`}
+                    } ${isClickable ? styles.progressStepClickable : ''}`}
+                    onClick={() => isClickable && setCurrentStep(displayIdx)}
+                    title={isClickable ? `Jump to ${step.label}` : undefined}
                   >
                     <div className={styles.progressStepCircle}>
                       {displayIdx < currentStep ? '✓' : displayIdx + 1}
@@ -1740,12 +1742,15 @@ export default function Home() {
             ) : (
               CATEGORIES.map((cat, idx) => {
                 const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
+                const isClickable = userRole === 'se';
                 return (
                   <div
                     key={cat.id}
                     className={`${styles.progressStep} ${
                       displayIdx <= currentStep ? styles.progressStepActive : ''
-                    }`}
+                    } ${isClickable ? styles.progressStepClickable : ''}`}
+                    onClick={() => isClickable && setCurrentStep(displayIdx)}
+                    title={isClickable ? `Jump to ${cat.label}` : undefined}
                   >
                     <div className={styles.progressStepCircle}>
                       {displayIdx < currentStep ? '✓' : displayIdx + 1}

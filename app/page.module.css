@@ -222,6 +222,20 @@
   color: white;
 }
 
+.progressStepClickable {
+  cursor: pointer;
+}
+
+.progressStepClickable:hover .progressStepCircle {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: scale(1.08);
+}
+
+.progressStepClickable:hover .progressStepLabel {
+  color: var(--primary);
+}
+
 .progressStepLabel {
   font-size: 0.75rem;
   color: var(--text-tertiary);

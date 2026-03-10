@@ -266,6 +266,12 @@ type GuideSectionDef = {
   showByDefault: (data: SOWData) => boolean;
 };
 
+type SandboxIntroSectionDef = {
+  id: string;
+  title: string;
+  defaultContent: (merchantName: string) => string;
+};
+
 // ─── PSP / APM helpers ────────────────────────────────────────────────────────
 const getPSPCredentials = (psp: string): string => {
   const creds: Record<string, string> = {
@@ -568,6 +574,64 @@ const GUIDE_SECTIONS: GuideSectionDef[] = [
     defaultContent: (data, ctx) =>
       `Your Primer SE is here to support you through every step of the integration.\n\n${ctx.seContact ? `Solutions Engineer: ${ctx.seContact}${ctx.seEmail ? ` — ${ctx.seEmail}` : ''}` : 'Contact your Primer Solutions Engineer for technical questions, integration blockers, or to schedule a working session.'}\n\nReach out with any questions about workflow design, 3DS configuration, token migration, or connecting a new processor.`,
     showByDefault: () => true,
+  },
+];
+
+// ─── Sandbox Intro Section Definitions ───────────────────────────────────────
+const SANDBOX_INTRO_SECTIONS: SandboxIntroSectionDef[] = [
+  {
+    id: 'si_intro',
+    title: 'Introduction',
+    defaultContent: (merchantName) =>
+      `Welcome, ${merchantName}! This guide is a quick reference to the key product features you'll want to explore within the Primer Sandbox — and touches on implementation of checkout as well.\n\nFor a step-by-step overview: https://primer.io/docs/get-started/overview`,
+  },
+  {
+    id: 'si_quickLinks',
+    title: 'Quick Links',
+    defaultContent: () =>
+      `Sandbox URL: https://sandbox-dashboard.primer.io/\nStep-by-step overview: https://primer.io/docs/get-started/overview\nPrimer Docs: https://primer.io/docs/home\nCheckout Implementation Dev Docs: https://web-components.primer.io/guides/getting-started#installation`,
+  },
+  {
+    id: 'si_integrations',
+    title: 'Integrations',
+    defaultContent: () =>
+      `This section covers how to connect processors and payment methods to your Primer setup.\n\nPrimer Integrations documentation: https://primer.io/docs/connections/payment-methods/overview\n\nThe Integrations tab on the left brings you to all connected PSPs and Payment Methods. All Sandbox accounts are automatically provisioned with a Primer test processor — use this to test card payments right away.\n\nClick + New Integration (top right) to add a new Processor or Payment Method. Most integrations will ask for a Merchant ID and various API Keys, which can be found in each processor's dashboard or developer settings.\n\nBrowse the category filters to explore Primer's native integrations, and filter by currency and location to understand which payment methods are available in the regions you want to support.`,
+  },
+  {
+    id: 'si_workflows',
+    title: 'Workflows',
+    defaultContent: (merchantName) =>
+      `This section covers how to route payments, create automations, and build business logic for your payment flows.\n\nPrimer Workflows documentation: https://primer.io/docs/build/workflows\n\nClick the Workflows tab on the left to see all your workflows. Click + New Workflow (top right) to browse templates, or use + Create blank workflow to start from scratch.\n\nAll workflows start with a Trigger. For sandbox testing, start with a basic authorization workflow:\n\nSimple payment authorization workflow:\n• Start with a 'Payment created' trigger\n• Add an 'Authorize payment' action\n• In the right panel, configure:\n  — Primary processor & MID\n  — A fallback processor & MID (recommended)\n  — 3DS settings\n• Add a 'Continue payment flow' action to finish\n• Hit Publish (top right)\n\nOnce you have a basic workflow running, build more granular flows using:\n\nConditions Utility\n• Template: Route transactions based on currency\n• Uses the Condition Utility and Currency Variable\n• ${merchantName} can use this to apply different 3DS settings by region (e.g. required in EU, not in US)\n\nSplit Utility\n• A/B test processors and/or fraud providers\n• Create up to 5 splits and choose traffic distribution`,
+  },
+  {
+    id: 'si_checkout',
+    title: 'Checkout',
+    defaultContent: (merchantName) =>
+      `Once you have a basic workflow set up, you're ready to implement Primer into your checkout.\n\nPrimer Checkout documentation: https://primer.io/docs/checkout/checkout-builder\nDev docs for integration: https://web-components.primer.io/guides/getting-started#installation\n\nUse the Checkout tab on the left to preview and configure your Primer Checkout. Enable/disable payment methods, and use drag-and-drop to re-arrange APMs.\n\nConditions can be set on each payment method based on:\n• Order currency & amount\n• Order country\n• Metadata\n\nAfter configuring, hit Publish (top right). Re-publish any time you add a new payment method or integration.\n\n${merchantName}'s development team will need to:\n1. Make a Client Session Request — minimum fields:\n   • orderId: Your reference for tracking this payment\n   • currencyCode: Three-letter currency code (e.g., "USD")\n   • Customer details (billing/shipping address)\n2. Integrate the Primer SDK and add the primer-checkout component to your checkout page\n\nOnce integrated, use Primer's Test Processor with the provided test card details to test different scenarios. This is also a great time to go back and explore more workflows, conditions, and splits.`,
+  },
+  {
+    id: 'si_payments',
+    title: 'Payments',
+    defaultContent: () =>
+      `Once your first payment completes, explore the payment data in your dashboard.\n\nPrimer Payment Timeline documentation: https://primer.io/docs/payment-services/payments/overview\n\nClick the Payments tab on the left to view all transactions. Quick filters at the top: Authorized, Settled, Declined. Use the date range picker and additional Filters (top right) for deeper views.\n\n💡 Tip: If you've tested fallback processors, add a "Fallback Processor Used = TRUE" filter to isolate those transactions.\n\nClick into any transaction to view:\n• Payment Timeline — step-by-step flow of what happened\n• Workflow Runs — which workflows were triggered\n• Click each timeline step for transaction details and the API Requests and Responses between Primer and the PSP`,
+  },
+  {
+    id: 'si_observability',
+    title: 'Observability',
+    defaultContent: (merchantName) =>
+      `Take a high-level look at all payment data available in Primer.\n\nPrimer Observability documentation: https://primer.io/docs/observability/overview\n\nClick the Observability tab on the left for an overview of your payment data:\n• Total Sales Value\n• Authorization Rate\n• Declines Count\n\nScroll down for Primer's curated dashboards highlighting key payment metrics. Each report has filter controls at the top, with additional filter variables on the top right.\n\nWe recommend browsing the available reports and, as you build more complex workflows, considering what additional data to add to your client sessions — such as via metadata — for analysis and filtering.\n\nAs ${merchantName} grows its tech stack on Primer, custom dashboards can be requested through your Customer Success Manager.`,
+  },
+  {
+    id: 'si_monitors',
+    title: 'Monitors',
+    defaultContent: () =>
+      `Set up monitors and notifications for quick snapshots of your payment stack.\n\nPrimer Monitors documentation: https://primer.io/docs/observability/monitors\n\nClick the Monitors tab on the left, then + New monitor (top right) to get started. Use the 'Trigger when' dropdown to browse monitor variables. Additional filters let you build granular monitors for specific processors, payment types, and more.\n\nTo start testing:\n• Create a monitor: Payments Count > 1, time period 5 minutes, minimum payments = 0\n• Run a few successful test transactions back-to-back\n• After ~5 minutes, the monitor should show a red event indicating it was triggered\n\nRecommended monitors:\n• Payment Declines/Failed — a spike can indicate a PSP outage\n• Fallback — a high rate of fallbacks can indicate an issue with your primary PSP\n\n💡 As you evolve with Primer, review your monitors regularly, understand your baseline, and adjust thresholds accordingly. Your CSM will provide strategic recommendations.\n\nMonitor + Workflow notifications:\n1. Click + New Workflow → Operational efficiency → Alerting from Monitors\n   (Or build from scratch with a 'Monitor event created' trigger)\n2. Add a condition for Monitor ID (found in the URL when editing a monitor)\n3. Add a 'Send email' action using the Primer Emails app\n4. Add variables from the monitor to auto-populate the email body\n5. Hit Publish, then trigger a few events — watch the emails come in!`,
+  },
+  {
+    id: 'si_reconciliation',
+    title: 'Reconciliation',
+    defaultContent: () =>
+      `Track settlements and transactions across multiple processors with ease.\n\nPrimer Reconciliation documentation: https://primer.io/docs/reconciliation/overview\n\nClick the Reconciliation tab on the left to view all reconciliation batches received from supported processors. Batches are organised by processor + MID + settlement currency.\n\nClick into a batch to see transaction-level data, status, and additional details. Export data using the + Export data button (top right), or request SFTP access via your CSM or Support team (SFTP is available in production only).\n\nCurrently supported processors for settlement reporting:\nAdyen, Checkout.com, Klarna, Mollie, Monext, PayPal, Stripe, and Thunes\n\nAvailable data and reports vary by processor. Primer is actively onboarding more processors — your team will work closely with you throughout launch and go-live to evaluate additional recon reports you may need.`,
   },
 ];
 
@@ -2443,6 +2507,18 @@ function OutputView({
     return section.showByDefault(displayData);
   };
 
+  const getSandboxIntroContent = (section: SandboxIntroSectionDef): string => {
+    const custom = currentVersion?.guideCustomizations?.[section.id];
+    if (custom?.customContent !== undefined) return custom.customContent;
+    return section.defaultContent(currentVersion?.merchantName || 'your company');
+  };
+
+  const isSandboxIntroSectionVisible = (section: SandboxIntroSectionDef): boolean => {
+    const custom = currentVersion?.guideCustomizations?.[section.id];
+    if (custom?.isVisible !== undefined) return custom.isVisible;
+    return true;
+  };
+
   const updateGuideCustomization = (sectionId: string, updates: Partial<GuideSectionCustomization>) => {
     const updatedVersions = versions.map(v =>
       v.id === selectedVersionId
@@ -2482,6 +2558,12 @@ function OutputView({
           docLink: null,
           notesField: null,
         },
+        sandboxIntro: {
+          title: 'Sandbox Intro',
+          content: null,
+          docLink: null,
+          notesField: null,
+        },
       }
     : {
         summary: {
@@ -2492,6 +2574,12 @@ function OutputView({
         },
         onboardingGuide: {
           title: 'Onboarding Guide',
+          content: null,
+          docLink: null,
+          notesField: null,
+        },
+        sandboxIntro: {
+          title: 'Sandbox Intro',
           content: null,
           docLink: null,
           notesField: null,
@@ -2900,6 +2988,85 @@ function OutputView({
                 <pre className={styles.guideSectionContent}>{getGuideContent(section)}</pre>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Sandbox Intro (SE editable, merchant read-only) ── */}
+        {selectedCategory === 'sandboxIntro' && (
+          <div className={styles.guideContainer}>
+            {effectiveRole === 'se'
+              ? SANDBOX_INTRO_SECTIONS.map(section => {
+                  const visible = isSandboxIntroSectionVisible(section);
+                  const isEditing = editingGuideSection === section.id;
+                  const content = getSandboxIntroContent(section);
+                  return (
+                    <div key={section.id} className={`${styles.guideSectionCard} ${!visible ? styles.guideSectionHidden : ''}`}>
+                      <div className={styles.guideSectionHeader}>
+                        <h3 className={styles.guideSectionTitle}>{section.title}</h3>
+                        <div className={styles.guideSectionActions}>
+                          <button
+                            className={`${styles.guideVisibilityBtn} ${!visible ? styles.guideVisibilityBtnActive : ''}`}
+                            onClick={() => updateGuideCustomization(section.id, { isVisible: !visible })}
+                            title={visible ? 'Hide from merchant' : 'Show to merchant'}
+                          >
+                            {visible ? '👁 Visible' : '🚫 Hidden'}
+                          </button>
+                          {visible && !isEditing && (
+                            <button
+                              className={styles.guideEditBtn}
+                              onClick={() => {
+                                setEditingGuideSection(section.id);
+                                setEditGuideSectionContent(content);
+                              }}
+                            >
+                              ✏️ Edit
+                            </button>
+                          )}
+                          {isEditing && (
+                            <>
+                              <button
+                                className={styles.guideSaveBtn}
+                                onClick={() => {
+                                  updateGuideCustomization(section.id, { customContent: editGuideSectionContent });
+                                  setEditingGuideSection(null);
+                                }}
+                              >
+                                ✓ Save
+                              </button>
+                              <button
+                                className={styles.guideCancelBtn}
+                                onClick={() => setEditingGuideSection(null)}
+                              >
+                                ✕ Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {visible && (
+                        isEditing ? (
+                          <textarea
+                            className={styles.guideSectionEditor}
+                            value={editGuideSectionContent}
+                            onChange={(e) => setEditGuideSectionContent(e.target.value)}
+                            rows={Math.max(8, content.split('\n').length + 2)}
+                          />
+                        ) : (
+                          <pre className={styles.guideSectionContent}>{content}</pre>
+                        )
+                      )}
+                    </div>
+                  );
+                })
+              : SANDBOX_INTRO_SECTIONS.filter(section => isSandboxIntroSectionVisible(section)).map(section => (
+                  <div key={section.id} className={styles.guideSectionCard}>
+                    <div className={styles.guideSectionHeader}>
+                      <h3 className={styles.guideSectionTitle}>{section.title}</h3>
+                    </div>
+                    <pre className={styles.guideSectionContent}>{getSandboxIntroContent(section)}</pre>
+                  </div>
+                ))
+            }
           </div>
         )}
 

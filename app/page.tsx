@@ -2808,8 +2808,7 @@ function OutputView({
         let lastIndex = 0;
         let match;
 
-        const tempRegex = new RegExp(urlRegex.source);
-        while ((match = tempRegex.exec(line)) !== null) {
+        while ((match = urlRegex.exec(line)) !== null) {
           if (match.index > lastIndex) {
             parts.push(line.substring(lastIndex, match.index));
           }

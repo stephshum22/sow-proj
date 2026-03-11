@@ -827,13 +827,13 @@ export default function Home() {
 
   // Get current question/step based on active questionnaire type
   const getCurrentStep = () => {
-    // For merchant role, step 0 is always merchant name
-    if (userRole === 'merchant' && currentStep === 0) {
+    // Step 0 is always merchant name for all roles
+    if (currentStep === 0) {
       return { type: 'merchant-name', label: 'Merchant Name' };
     }
 
-    // Adjust step index for merchant (skip step 0)
-    const adjustedStep = userRole === 'merchant' ? currentStep - 1 : currentStep;
+    // Adjust step index — skip step 0 (merchant name) for all roles
+    const adjustedStep = currentStep - 1;
 
     if (gandalfQuestionnaire) {
       const sortedQuestions = [...gandalfQuestionnaire.questions].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -855,8 +855,8 @@ export default function Home() {
       baseSteps = CATEGORIES.length;
     }
 
-    // Add 1 for merchant name question if merchant role
-    return userRole === 'merchant' ? baseSteps + 1 : baseSteps;
+    // Add 1 for merchant name step (all roles)
+    return baseSteps + 1;
   };
 
   const currentCategory = getCurrentStep();
@@ -1187,7 +1187,7 @@ export default function Home() {
   };
 
   const renderFormField = () => {
-    // Merchant name field (merchant role only, step 0)
+    // Merchant name field — step 0 for all roles
     if (currentCategory && 'type' in currentCategory && currentCategory.type === 'merchant-name') {
       return (
         <div>
@@ -2210,6 +2210,19 @@ function OutputView({
     setSeName('');
   };
 
+  // Strip emoji and unsupported Unicode from text before passing to jsPDF (Helvetica only covers Latin-1)
+  const sanitizeForPDF = (text: string): string =>
+    text
+      .replace(/💡/g, 'Note:')
+      .replace(/▶/g, '>')
+      .replace(/🔗/g, '')
+      .replace(/☐/g, '[ ]')
+      .replace(/☑/g, '[x]')
+      .replace(/✓/g, '[x]')
+      .replace(/•/g, '-')
+      // Remove anything outside Latin-1 + common punctuation that Helvetica can't render
+      .replace(/[^\u0000-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g, '');
+
   const handleExportGuidePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -2280,7 +2293,8 @@ function OutputView({
 
       // Section content
       const custom = currentVersion?.guideCustomizations?.[section.id];
-      const content = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(displayData, guideCtxForPDF);
+      const rawContent = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(displayData, guideCtxForPDF);
+      const content = sanitizeForPDF(rawContent);
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -2377,7 +2391,7 @@ function OutputView({
           if (urlMatch) {
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(255, 124, 79);
-            doc.textWithLink('▶ Video tutorial', margin, yPos, { url: urlMatch[1] });
+            doc.textWithLink('> Video tutorial', margin, yPos, { url: urlMatch[1] });
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(74, 44, 31);
             yPos += 6;
@@ -2385,9 +2399,10 @@ function OutputView({
         } else if (trimmed.startsWith('🔗')) {
           const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
           if (urlMatch) {
-            const label = trimmed.replace(/🔗\s*/, '').replace(urlMatch[1], '').trim();
+            const rawLabel = trimmed.replace(/🔗\s*/, '').replace(urlMatch[1], '').replace(/:\s*$/, '').trim();
+            const label = sanitizeForPDF(rawLabel) || urlMatch[1];
             doc.setTextColor(41, 68, 200);
-            doc.textWithLink(label || urlMatch[1], margin, yPos, { url: urlMatch[1] });
+            doc.textWithLink(label, margin, yPos, { url: urlMatch[1] });
             doc.setTextColor(74, 44, 31);
             yPos += 6;
           }
@@ -2398,7 +2413,7 @@ function OutputView({
           doc.setTextColor(74, 44, 31);
           yPos += 6;
         } else {
-          yPos = addText(line, margin, yPos, contentWidth, 10);
+          yPos = addText(sanitizeForPDF(line), margin, yPos, contentWidth, 10);
         }
       });
 

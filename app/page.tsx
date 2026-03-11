@@ -1882,6 +1882,7 @@ function OutputView({
   const [seName, setSeName] = useState('');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportType, setExportType] = useState<'pdf' | 'json'>('pdf');
+  const [exportDocs, setExportDocs] = useState<{ sow: boolean; guide: boolean; sandboxIntro: boolean }>({ sow: true, guide: false, sandboxIntro: false });
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingGuideSection, setEditingGuideSection] = useState<string | null>(null);
   const [editGuideSectionContent, setEditGuideSectionContent] = useState('');
@@ -2209,12 +2210,219 @@ function OutputView({
     setSeName('');
   };
 
+  const handleExportGuidePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPos = margin;
+
+    // Helper function to add text with word wrap
+    const addText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
+      doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines, x, y);
+      return y + (lines.length * fontSize * 0.4);
+    };
+
+    // Helper function to check and create new page if needed
+    const checkNewPage = (neededSpace: number) => {
+      if (yPos + neededSpace > pageHeight - margin) {
+        doc.addPage();
+        return margin;
+      }
+      return yPos;
+    };
+
+    // Header with brand color
+    doc.setFillColor(255, 124, 79); // #FF7C4F - coral
+    doc.rect(0, 0, pageWidth, 35, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Onboarding Guide', margin, 20);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    const merchantText = currentVersion?.merchantName || merchantName || 'Merchant';
+    doc.text(merchantText, margin, 28);
+
+    // Date
+    doc.setFontSize(10);
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
+
+    yPos = 45;
+    doc.setTextColor(74, 44, 31); // Dark brown for body text
+
+    // Process each visible guide section
+    const guideCtxForPDF: GuideCtx = {
+      merchantName: currentVersion?.merchantName || merchantName || 'Merchant',
+      seContact: currentVersion?.seContact || '',
+      seEmail: currentVersion?.seEmail || '',
+    };
+
+    GUIDE_SECTIONS.filter(s => {
+      const custom = currentVersion?.guideCustomizations?.[s.id];
+      if (custom?.isVisible !== undefined) return custom.isVisible;
+      return s.showByDefault(displayData);
+    }).forEach((section) => {
+      yPos = checkNewPage(25);
+
+      // Section title
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 124, 79);
+      doc.text(section.title, margin, yPos);
+      yPos += 8;
+
+      // Section content
+      const custom = currentVersion?.guideCustomizations?.[section.id];
+      const content = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(displayData, guideCtxForPDF);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(74, 44, 31);
+      yPos = addText(content, margin, yPos, contentWidth);
+      yPos += 8;
+    });
+
+    // Save the PDF
+    const todayDate = new Date().toISOString().split('T')[0];
+    const mName = (currentVersion?.merchantName || merchantName || 'Merchant').replace(/\s+/g, '-');
+    const fileName = `OnboardingGuide_${mName}_${todayDate}.pdf`;
+
+    doc.save(fileName);
+  };
+
+  const handleExportSandboxIntroPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPos = margin;
+
+    // Helper function to add text with word wrap
+    const addText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
+      doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(text, maxWidth);
+      doc.text(lines, x, y);
+      return y + (lines.length * fontSize * 0.4);
+    };
+
+    // Helper function to check and create new page if needed
+    const checkNewPage = (neededSpace: number) => {
+      if (yPos + neededSpace > pageHeight - margin) {
+        doc.addPage();
+        return margin;
+      }
+      return yPos;
+    };
+
+    // Header with brand color
+    doc.setFillColor(255, 124, 79); // #FF7C4F - coral
+    doc.rect(0, 0, pageWidth, 35, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Sandbox Introduction', margin, 20);
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    const merchantText = currentVersion?.merchantName || merchantName || 'Merchant';
+    doc.text(merchantText, margin, 28);
+
+    // Date
+    doc.setFontSize(10);
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
+
+    yPos = 45;
+    doc.setTextColor(74, 44, 31); // Dark brown for body text
+
+    // Process each visible sandbox intro section
+    SANDBOX_INTRO_SECTIONS.filter(s => {
+      const custom = currentVersion?.guideCustomizations?.[s.id];
+      if (custom?.isVisible !== undefined) return custom.isVisible;
+      return true;
+    }).forEach((section) => {
+      yPos = checkNewPage(25);
+
+      // Section title
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 124, 79);
+      doc.text(section.title, margin, yPos);
+      yPos += 8;
+
+      // Section content - parse for special formatting
+      const custom = currentVersion?.guideCustomizations?.[section.id];
+      const content = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(currentVersion?.merchantName || 'Merchant');
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+
+      const lines = content.split('\n');
+      lines.forEach((line) => {
+        const trimmed = line.trim();
+
+        if (trimmed === '') {
+          yPos += 3;
+        } else if (trimmed.startsWith('▶ Video tutorial:')) {
+          const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 124, 79);
+            doc.textWithLink('▶ Video tutorial', margin, yPos, { url: urlMatch[1] });
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(74, 44, 31);
+            yPos += 6;
+          }
+        } else if (trimmed.startsWith('🔗')) {
+          const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            const label = trimmed.replace(/🔗\s*/, '').replace(urlMatch[1], '').trim();
+            doc.setTextColor(41, 68, 200);
+            doc.textWithLink(label || urlMatch[1], margin, yPos, { url: urlMatch[1] });
+            doc.setTextColor(74, 44, 31);
+            yPos += 6;
+          }
+        } else if (/^https?:\/\//.test(trimmed)) {
+          // Bare URL
+          doc.setTextColor(41, 68, 200);
+          doc.textWithLink(trimmed, margin, yPos, { url: trimmed });
+          doc.setTextColor(74, 44, 31);
+          yPos += 6;
+        } else {
+          yPos = addText(line, margin, yPos, contentWidth, 10);
+        }
+      });
+
+      yPos += 4;
+    });
+
+    // Save the PDF
+    const todayDate = new Date().toISOString().split('T')[0];
+    const mName = (currentVersion?.merchantName || merchantName || 'Merchant').replace(/\s+/g, '-');
+    const fileName = `SandboxIntro_${mName}_${todayDate}.pdf`;
+
+    doc.save(fileName);
+  };
+
   const handleExport = () => {
-    if (exportType === 'pdf') {
-      handleExportPDF();
-    } else {
+    if (exportType === 'json') {
       handleExportJSON();
+      return;
     }
+    // PDF: generate each selected doc
+    if (exportDocs.sow) handleExportPDF();
+    if (exportDocs.guide) handleExportGuidePDF();
+    if (exportDocs.sandboxIntro) handleExportSandboxIntroPDF();
+    if (!exportDocs.sow && !exportDocs.guide && !exportDocs.sandboxIntro) handleExportPDF();
   };
 
   const formatDate = (dateString: string) => {
@@ -2544,6 +2752,98 @@ function OutputView({
     onVersionsUpdate(updatedVersions);
   };
 
+  // ─── Sandbox Content Renderer with clickable links ────────────────────────────
+  const renderSandboxContent = (text: string): React.ReactNode[] => {
+    const lines = text.split('\n');
+    const result: React.ReactNode[] = [];
+
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+
+      if (trimmed === '') {
+        // Empty line
+        result.push(<div key={`spacer-${idx}`} className={styles.sandboxContentSpacer} />);
+      } else if (trimmed.startsWith('▶ Video tutorial:')) {
+        // Extract URL and render as orange pill
+        const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+          result.push(
+            <div key={`video-${idx}`} className={styles.sandboxVideoLink}>
+              <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer">
+                ▶ Video tutorial
+              </a>
+            </div>
+          );
+        } else {
+          result.push(<div key={`video-${idx}`} className={styles.sandboxContentLine}>{line}</div>);
+        }
+      } else if (trimmed.startsWith('🔗')) {
+        // Extract URL and render as blue link
+        const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+          const label = trimmed.replace(/🔗\s*/, '').replace(urlMatch[1], '').trim();
+          result.push(
+            <div key={`doc-${idx}`} className={styles.sandboxDocLink}>
+              <a href={urlMatch[1]} target="_blank" rel="noopener noreferrer">
+                {label || urlMatch[1]}
+              </a>
+            </div>
+          );
+        } else {
+          result.push(<div key={`doc-${idx}`} className={styles.sandboxContentLine}>{line}</div>);
+        }
+      } else if (/^https?:\/\//.test(trimmed)) {
+        // Bare URL line
+        result.push(
+          <div key={`bare-url-${idx}`}>
+            <a href={trimmed} target="_blank" rel="noopener noreferrer" className={styles.sandboxInlineLink}>
+              {trimmed}
+            </a>
+          </div>
+        );
+      } else if (/https?:\/\//.test(line)) {
+        // Line with embedded URLs
+        const parts: React.ReactNode[] = [];
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        let lastIndex = 0;
+        let match;
+
+        const tempRegex = new RegExp(urlRegex.source);
+        while ((match = tempRegex.exec(line)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(line.substring(lastIndex, match.index));
+          }
+          parts.push(
+            <a
+              key={`embedded-${idx}-${match.index}`}
+              href={match[0]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.sandboxInlineLink}
+            >
+              {match[0]}
+            </a>
+          );
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < line.length) {
+          parts.push(line.substring(lastIndex));
+        }
+
+        result.push(
+          <div key={`embedded-${idx}`} className={styles.sandboxContentLine}>
+            {parts}
+          </div>
+        );
+      } else {
+        // Regular line
+        result.push(<div key={`line-${idx}`} className={styles.sandboxContentLine}>{line}</div>);
+      }
+    });
+
+    return result;
+  };
+
   const categoryContent: Record<string, any> = effectiveRole === 'merchant'
     ? {
         merchantSOW: {
@@ -2592,9 +2892,9 @@ function OutputView({
       {showExportDialog && (
         <div className={styles.modalOverlay} onClick={() => setShowExportDialog(false)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Export SOW</h3>
+            <h3 className={styles.modalTitle}>Export Documents</h3>
             <p className={styles.modalDescription}>
-              Enter the details below to generate your SOW
+              Enter the details below to generate your exports
             </p>
 
             <div className={styles.exportFormGroup}>
@@ -2631,6 +2931,38 @@ function OutputView({
               />
             </div>
 
+            {exportType === 'pdf' && (
+              <div className={styles.exportFormGroup}>
+                <label className={styles.exportLabel}>Documents to Export:</label>
+                <div className={styles.exportDocCheckboxes}>
+                  <label className={styles.exportDocCheckboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={exportDocs.sow}
+                      onChange={(e) => setExportDocs({ ...exportDocs, sow: e.target.checked })}
+                    />
+                    SOW Summary
+                  </label>
+                  <label className={styles.exportDocCheckboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={exportDocs.guide}
+                      onChange={(e) => setExportDocs({ ...exportDocs, guide: e.target.checked })}
+                    />
+                    Onboarding Guide
+                  </label>
+                  <label className={styles.exportDocCheckboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={exportDocs.sandboxIntro}
+                      onChange={(e) => setExportDocs({ ...exportDocs, sandboxIntro: e.target.checked })}
+                    />
+                    Sandbox Intro
+                  </label>
+                </div>
+              </div>
+            )}
+
             <div className={styles.exportFormGroup}>
               <label className={styles.exportLabel}>Export Format:</label>
               <div className={styles.exportTypeButtons}>
@@ -2662,7 +2994,9 @@ function OutputView({
                 Cancel
               </button>
               <button className={styles.buttonPrimary} onClick={handleExport}>
-                Export {exportType.toUpperCase()}
+                {exportType === 'json'
+                  ? 'Export JSON'
+                  : `Export ${[exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length} PDF${[exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length === 1 ? '' : 's'}`}
               </button>
             </div>
           </div>
@@ -3052,7 +3386,9 @@ function OutputView({
                             rows={Math.max(8, content.split('\n').length + 2)}
                           />
                         ) : (
-                          <pre className={styles.guideSectionContent}>{content}</pre>
+                          <div className={styles.guideSectionContent}>
+                            {renderSandboxContent(content)}
+                          </div>
                         )
                       )}
                     </div>
@@ -3063,7 +3399,9 @@ function OutputView({
                     <div className={styles.guideSectionHeader}>
                       <h3 className={styles.guideSectionTitle}>{section.title}</h3>
                     </div>
-                    <pre className={styles.guideSectionContent}>{getSandboxIntroContent(section)}</pre>
+                    <div className={styles.guideSectionContent}>
+                      {renderSandboxContent(getSandboxIntroContent(section))}
+                    </div>
                   </div>
                 ))
             }

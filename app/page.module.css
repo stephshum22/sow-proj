@@ -1648,3 +1648,85 @@
     padding: 1.5rem;
   }
 }
+
+/* Sandbox Content Renderer Styles */
+.sandboxVideoLink a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FF7C4F;
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border-radius: 20px;
+  text-decoration: none;
+  margin: 4px 0;
+}
+
+.sandboxVideoLink a:hover {
+  background: #e6633a;
+}
+
+.sandboxDocLink a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0066CC;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border-bottom: 1px solid #c0d8f0;
+  margin: 2px 0;
+}
+
+.sandboxDocLink a:hover {
+  color: #004999;
+  border-bottom-color: #004999;
+}
+
+.sandboxInlineLink {
+  color: #0066CC;
+  text-decoration: none;
+  border-bottom: 1px dotted #0066CC;
+}
+
+.sandboxInlineLink:hover {
+  color: #004999;
+}
+
+.sandboxContentLine {
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #3d2b1f;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sandboxContentSpacer {
+  height: 8px;
+}
+
+/* Export Dialog Checkbox Styles */
+.exportDocCheckboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.exportDocCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #3d2b1f;
+  cursor: pointer;
+}
+
+.exportDocCheckboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #FF7C4F;
+}

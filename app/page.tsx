@@ -1881,7 +1881,7 @@ function OutputView({
   const [bdmName, setBdmName] = useState('');
   const [seName, setSeName] = useState('');
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'json'>('pdf');
+  const [exportType, setExportType] = useState<'pdf' | 'markdown' | 'json'>('pdf');
   const [exportDocs, setExportDocs] = useState<{ sow: boolean; guide: boolean; sandboxIntro: boolean }>({ sow: true, guide: false, sandboxIntro: false });
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [editingGuideSection, setEditingGuideSection] = useState<string | null>(null);
@@ -1985,28 +1985,48 @@ function OutputView({
       return y + (lines.length * fontSize * 0.4);
     };
 
-    // Header with brand color
-    doc.setFillColor(255, 124, 79); // #FF7C4F - coral
-    doc.rect(0, 0, pageWidth, 35, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    // Clean white header
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('Statement of Work', margin, 20);
+    doc.text('Statement of Work', margin, 18);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
     const merchantText = merchantName || 'Merchant';
-    doc.text(merchantText, margin, 28);
+    doc.text(merchantText, margin, 27);
 
     // Date and version
-    doc.setFontSize(10);
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
-    doc.text(`Version: ${currentVersion?.version || 'v1.0'}`, pageWidth - margin - 60, 28);
+    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 18);
+    doc.text(`Version: ${currentVersion?.version || 'v1.0'}`, pageWidth - margin - 60, 26);
 
-    yPos = 45;
-    doc.setTextColor(74, 44, 31); // Dark brown for body text
+    // Orange accent underline below header
+    doc.setDrawColor(255, 124, 79);
+    doc.setLineWidth(1.5);
+    doc.line(margin, 32, pageWidth - margin, 32);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+
+    yPos = 42;
+    doc.setTextColor(40, 40, 40); // Near-black for body text
+
+    // Helper: section header — black bold text + orange underline
+    const drawSectionHeader = (title: string) => {
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, margin, yPos);
+      doc.setDrawColor(255, 124, 79);
+      doc.setLineWidth(0.8);
+      doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.2);
+      yPos += 10;
+    };
 
     // BDM and SE Names
     if (bdmName || seName) {
@@ -2035,15 +2055,11 @@ function OutputView({
 
     // Status Tracking Section (only meeting/email info, no SE review/approval)
     if (currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) {
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 124, 79);
-      doc.text('STATUS', margin, yPos);
-      yPos += 8;
+      drawSectionHeader('STATUS');
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(74, 44, 31);
+      doc.setTextColor(40, 40, 40);
 
       if (currentVersion?.sharedInMeetingDate) {
         const meetingDate = new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', {
@@ -2068,15 +2084,11 @@ function OutputView({
     }
 
     // Go Live Date Section
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('GO LIVE DATE', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('GO LIVE DATE');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     yPos = addText(formatDate(displayData.goLiveDate), margin, yPos, contentWidth);
     yPos += 8;
 
@@ -2091,15 +2103,11 @@ function OutputView({
 
     // Payment Methods Section
     yPos = checkNewPage(30);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('PAYMENT METHODS', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('PAYMENT METHODS');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     const paymentMethodsText = formatPaymentMethods().replace(/• /g, '  • ');
     yPos = addText(paymentMethodsText, margin, yPos, contentWidth);
     yPos += 6;
@@ -2114,15 +2122,11 @@ function OutputView({
 
     // PSPs Section
     yPos = checkNewPage(30);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('PSPs', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('PSPs');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     const pspsText = formatPSPs().replace(/• /g, '  • ');
     yPos = addText(pspsText, margin, yPos, contentWidth);
     yPos += 6;
@@ -2137,15 +2141,11 @@ function OutputView({
 
     // 3DS Strategies Section
     yPos = checkNewPage(25);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('3DS STRATEGIES', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('3DS STRATEGIES');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     yPos = addText(format3DSStrategy(), margin, yPos, contentWidth);
     yPos += 6;
 
@@ -2159,15 +2159,11 @@ function OutputView({
 
     // Purchase Channels & Flows Section
     yPos = checkNewPage(40);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('PURCHASE CHANNELS & FLOWS', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('PURCHASE CHANNELS & FLOWS');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     const channelsText = formatChannelsAndFlows().replace(/• /g, '  • ');
     yPos = addText(channelsText, margin, yPos, contentWidth);
     yPos += 6;
@@ -2182,15 +2178,11 @@ function OutputView({
 
     // Token Migration Section
     yPos = checkNewPage(25);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 124, 79);
-    doc.text('TOKEN MIGRATION', margin, yPos);
-    yPos += 8;
+    drawSectionHeader('TOKEN MIGRATION');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(74, 44, 31);
+    doc.setTextColor(40, 40, 40);
     const tokenText = formatTokenMigration().replace(/• /g, '  • ');
     yPos = addText(tokenText, margin, yPos, contentWidth);
 
@@ -2248,27 +2240,46 @@ function OutputView({
       return yPos;
     };
 
-    // Header with brand color
-    doc.setFillColor(255, 124, 79); // #FF7C4F - coral
-    doc.rect(0, 0, pageWidth, 35, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    // Clean white header
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('Onboarding Guide', margin, 20);
+    doc.text('Onboarding Guide', margin, 18);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
     const merchantText = currentVersion?.merchantName || merchantName || 'Merchant';
-    doc.text(merchantText, margin, 28);
+    doc.text(merchantText, margin, 27);
 
-    // Date
-    doc.setFontSize(10);
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
+    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 18);
 
-    yPos = 45;
-    doc.setTextColor(74, 44, 31); // Dark brown for body text
+    // Orange accent underline below header
+    doc.setDrawColor(255, 124, 79);
+    doc.setLineWidth(1.5);
+    doc.line(margin, 32, pageWidth - margin, 32);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+
+    yPos = 42;
+    doc.setTextColor(40, 40, 40);
+
+    // Helper: section header — black bold text + orange underline
+    const drawSectionHeader = (title: string) => {
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, margin, yPos);
+      doc.setDrawColor(255, 124, 79);
+      doc.setLineWidth(0.8);
+      doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.2);
+      yPos += 10;
+    };
 
     // Process each visible guide section
     const guideCtxForPDF: GuideCtx = {
@@ -2284,12 +2295,8 @@ function OutputView({
     }).forEach((section) => {
       yPos = checkNewPage(25);
 
-      // Section title
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 124, 79);
-      doc.text(section.title, margin, yPos);
-      yPos += 8;
+      // Section title — black bold + orange underline
+      drawSectionHeader(section.title);
 
       // Section content
       const custom = currentVersion?.guideCustomizations?.[section.id];
@@ -2298,7 +2305,7 @@ function OutputView({
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(74, 44, 31);
+      doc.setTextColor(40, 40, 40);
       yPos = addText(content, margin, yPos, contentWidth);
       yPos += 8;
     });
@@ -2336,27 +2343,46 @@ function OutputView({
       return yPos;
     };
 
-    // Header with brand color
-    doc.setFillColor(255, 124, 79); // #FF7C4F - coral
-    doc.rect(0, 0, pageWidth, 35, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    // Clean white header
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('Sandbox Introduction', margin, 20);
+    doc.text('Sandbox Introduction', margin, 18);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
     const merchantText = currentVersion?.merchantName || merchantName || 'Merchant';
-    doc.text(merchantText, margin, 28);
+    doc.text(merchantText, margin, 27);
 
-    // Date
-    doc.setFontSize(10);
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 20);
+    doc.text(`Generated: ${today}`, pageWidth - margin - 60, 18);
 
-    yPos = 45;
-    doc.setTextColor(74, 44, 31); // Dark brown for body text
+    // Orange accent underline below header
+    doc.setDrawColor(255, 124, 79);
+    doc.setLineWidth(1.5);
+    doc.line(margin, 32, pageWidth - margin, 32);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+
+    yPos = 42;
+    doc.setTextColor(40, 40, 40);
+
+    // Helper: section header — black bold text + orange underline
+    const drawSectionHeader = (title: string) => {
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, margin, yPos);
+      doc.setDrawColor(255, 124, 79);
+      doc.setLineWidth(0.8);
+      doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.2);
+      yPos += 10;
+    };
 
     // Process each visible sandbox intro section
     SANDBOX_INTRO_SECTIONS.filter(s => {
@@ -2366,12 +2392,8 @@ function OutputView({
     }).forEach((section) => {
       yPos = checkNewPage(25);
 
-      // Section title
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 124, 79);
-      doc.text(section.title, margin, yPos);
-      yPos += 8;
+      // Section title — black bold + orange underline
+      drawSectionHeader(section.title);
 
       // Section content - parse for special formatting
       const custom = currentVersion?.guideCustomizations?.[section.id];
@@ -2393,7 +2415,7 @@ function OutputView({
             doc.setTextColor(255, 124, 79);
             doc.textWithLink('> Video tutorial', margin, yPos, { url: urlMatch[1] });
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(74, 44, 31);
+            doc.setTextColor(40, 40, 40);
             yPos += 6;
           }
         } else if (trimmed.startsWith('🔗')) {
@@ -2403,14 +2425,14 @@ function OutputView({
             const label = sanitizeForPDF(rawLabel) || urlMatch[1];
             doc.setTextColor(41, 68, 200);
             doc.textWithLink(label, margin, yPos, { url: urlMatch[1] });
-            doc.setTextColor(74, 44, 31);
+            doc.setTextColor(40, 40, 40);
             yPos += 6;
           }
         } else if (/^https?:\/\//.test(trimmed)) {
           // Bare URL
           doc.setTextColor(41, 68, 200);
           doc.textWithLink(trimmed, margin, yPos, { url: trimmed });
-          doc.setTextColor(74, 44, 31);
+          doc.setTextColor(40, 40, 40);
           yPos += 6;
         } else {
           yPos = addText(sanitizeForPDF(line), margin, yPos, contentWidth, 10);
@@ -2428,9 +2450,145 @@ function OutputView({
     doc.save(fileName);
   };
 
+  // ── Markdown helpers ────────────────────────────────────────────────────────
+  const downloadMarkdown = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportSOWMarkdown = () => {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const todayDate = new Date().toISOString().split('T')[0];
+    const mName = merchantName || 'Merchant';
+    const version = currentVersion?.version || 'v1.0';
+
+    let md = `# Statement of Work\n\n`;
+    md += `**Merchant:** ${mName}  \n`;
+    md += `**Generated:** ${today}  \n`;
+    md += `**Version:** ${version}  \n`;
+    if (bdmName) md += `**BDM:** ${bdmName}  \n`;
+    if (seName) md += `**SE:** ${seName}  \n`;
+    md += `\n---\n\n`;
+
+    if (currentVersion?.sharedInMeetingDate || currentVersion?.emailedTo) {
+      md += `## STATUS\n\n`;
+      if (currentVersion?.sharedInMeetingDate) {
+        const d = new Date(currentVersion.sharedInMeetingDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        md += `Shared with merchant in meeting on: ${d}  \n`;
+      }
+      if (currentVersion?.emailedTo && currentVersion?.emailedDate) {
+        const d = new Date(currentVersion.emailedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        md += `Emailed SOW to: ${currentVersion.emailedTo} on ${d}  \n`;
+      }
+      md += `\n`;
+    }
+
+    md += `## GO LIVE DATE\n\n${formatDate(displayData.goLiveDate)}\n\n`;
+    md += `## PAYMENT METHODS\n\n${formatPaymentMethods()}\n\n`;
+    md += `[View Payment Methods Documentation](https://primer.io/docs/connections/payment-methods/overview)\n\n`;
+    md += `## PSPs\n\n${formatPSPs()}\n\n`;
+    md += `[View PSP Documentation](https://primer.io/docs/connections/payment-methods/overview)\n\n`;
+    md += `## 3DS STRATEGIES\n\n${format3DSStrategy()}\n\n`;
+    md += `[View 3DS Documentation](https://primer.io/docs/payment-services/3d-secure/overview)\n\n`;
+    md += `## PURCHASE CHANNELS & FLOWS\n\n${formatChannelsAndFlows()}\n\n`;
+    md += `[View Web Components Documentation](https://web-components.primer.io/)\n\n`;
+    md += `## TOKEN MIGRATION\n\n${formatTokenMigration()}\n`;
+
+    const fileName = `SOW_${mName.replace(/\s+/g, '-')}_${todayDate}_${version}.md`;
+    downloadMarkdown(md, fileName);
+  };
+
+  const handleExportGuideMarkdown = () => {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const todayDate = new Date().toISOString().split('T')[0];
+    const mName = currentVersion?.merchantName || merchantName || 'Merchant';
+
+    const guideCtx: GuideCtx = {
+      merchantName: mName,
+      seContact: currentVersion?.seContact || '',
+      seEmail: currentVersion?.seEmail || '',
+    };
+
+    let md = `# Onboarding Guide\n\n`;
+    md += `**Merchant:** ${mName}  \n`;
+    md += `**Generated:** ${today}  \n\n---\n\n`;
+
+    GUIDE_SECTIONS.filter(s => {
+      const custom = currentVersion?.guideCustomizations?.[s.id];
+      if (custom?.isVisible !== undefined) return custom.isVisible;
+      return s.showByDefault(displayData);
+    }).forEach(section => {
+      md += `## ${section.title}\n\n`;
+      const custom = currentVersion?.guideCustomizations?.[section.id];
+      const content = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(displayData, guideCtx);
+      md += `${content}\n\n`;
+    });
+
+    const fileName = `OnboardingGuide_${mName.replace(/\s+/g, '-')}_${todayDate}.md`;
+    downloadMarkdown(md, fileName);
+  };
+
+  const handleExportSandboxIntroMarkdown = () => {
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const todayDate = new Date().toISOString().split('T')[0];
+    const mName = currentVersion?.merchantName || merchantName || 'Merchant';
+
+    let md = `# Sandbox Introduction\n\n`;
+    md += `**Merchant:** ${mName}  \n`;
+    md += `**Generated:** ${today}  \n\n---\n\n`;
+
+    SANDBOX_INTRO_SECTIONS.filter(s => {
+      const custom = currentVersion?.guideCustomizations?.[s.id];
+      if (custom?.isVisible !== undefined) return custom.isVisible;
+      return true;
+    }).forEach(section => {
+      md += `## ${section.title}\n\n`;
+      const custom = currentVersion?.guideCustomizations?.[section.id];
+      const rawContent = custom?.customContent !== undefined ? custom.customContent : section.defaultContent(mName);
+
+      // Convert ▶ video tutorial and 🔗 doc link lines to proper markdown links
+      const lines = rawContent.split('\n');
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('▶ Video tutorial:')) {
+          const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            md += `▶ [Video tutorial](${urlMatch[1]})\n`;
+          }
+        } else if (trimmed.startsWith('🔗')) {
+          const urlMatch = trimmed.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            const label = trimmed.replace(/🔗\s*/, '').replace(urlMatch[1], '').replace(/:\s*$/, '').trim();
+            md += `🔗 [${label || urlMatch[1]}](${urlMatch[1]})\n`;
+          }
+        } else {
+          md += `${line}\n`;
+        }
+      });
+
+      md += `\n`;
+    });
+
+    const fileName = `SandboxIntro_${mName.replace(/\s+/g, '-')}_${todayDate}.md`;
+    downloadMarkdown(md, fileName);
+  };
+
   const handleExport = () => {
     if (exportType === 'json') {
       handleExportJSON();
+      return;
+    }
+    if (exportType === 'markdown') {
+      if (exportDocs.sow) handleExportSOWMarkdown();
+      if (exportDocs.guide) handleExportGuideMarkdown();
+      if (exportDocs.sandboxIntro) handleExportSandboxIntroMarkdown();
+      if (!exportDocs.sow && !exportDocs.guide && !exportDocs.sandboxIntro) handleExportSOWMarkdown();
+      setShowExportDialog(false);
       return;
     }
     // PDF: generate each selected doc
@@ -2945,7 +3103,7 @@ function OutputView({
               />
             </div>
 
-            {exportType === 'pdf' && (
+            {(exportType === 'pdf' || exportType === 'markdown') && (
               <div className={styles.exportFormGroup}>
                 <label className={styles.exportLabel}>Documents to Export:</label>
                 <div className={styles.exportDocCheckboxes}>
@@ -2987,6 +3145,12 @@ function OutputView({
                   📄 PDF (Formatted)
                 </button>
                 <button
+                  className={`${styles.exportTypeButton} ${exportType === 'markdown' ? styles.exportTypeButtonActive : ''}`}
+                  onClick={() => setExportType('markdown')}
+                >
+                  📝 Markdown (.md)
+                </button>
+                <button
                   className={`${styles.exportTypeButton} ${exportType === 'json' ? styles.exportTypeButtonActive : ''}`}
                   onClick={() => setExportType('json')}
                 >
@@ -3010,7 +3174,12 @@ function OutputView({
               <button className={styles.buttonPrimary} onClick={handleExport}>
                 {exportType === 'json'
                   ? 'Export JSON'
-                  : `Export ${[exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length} PDF${[exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length === 1 ? '' : 's'}`}
+                  : exportType === 'markdown'
+                    ? (() => {
+                        const count = [exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length || 1;
+                        return `Export ${count} Markdown File${count === 1 ? '' : 's'}`;
+                      })()
+                  : `Export ${[exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length || 1} PDF${([exportDocs.sow, exportDocs.guide, exportDocs.sandboxIntro].filter(Boolean).length || 1) === 1 ? '' : 's'}`}
               </button>
             </div>
           </div>

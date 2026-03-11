@@ -1671,17 +1671,22 @@
 .sandboxDocLink a {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: #0066CC;
-  font-size: 0.9rem;
+  gap: 6px;
+  background: #EEF4FF;
+  color: #0055BB;
+  font-weight: 500;
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  border-radius: 20px;
   text-decoration: none;
-  border-bottom: 1px solid #c0d8f0;
-  margin: 2px 0;
+  border: 1px solid #BFCFFF;
+  margin: 4px 0;
 }
 
 .sandboxDocLink a:hover {
-  color: #004999;
-  border-bottom-color: #004999;
+  background: #dce9ff;
+  color: #003d99;
+  border-color: #99b8ff;
 }
 
 .sandboxInlineLink {

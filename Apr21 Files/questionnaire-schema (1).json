@@ -1,0 +1,136 @@
+{
+  "type": "object",
+  "title": "Questionnaire",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "required": [
+    "id",
+    "title",
+    "status",
+    "version",
+    "createdById",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the questionnaire"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "description": "Title of the questionnaire"
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "PUBLISHED",
+        "ARCHIVED"
+      ],
+      "type": "string",
+      "description": "Current status of the questionnaire"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version number of the questionnaire"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the questionnaire was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the questionnaire was last updated"
+    },
+    "createdById": {
+      "type": "string",
+      "format": "uuid",
+      "description": "User ID who created the questionnaire"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional description of the questionnaire"
+    },
+    "publishedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the questionnaire was published"
+    }
+  },
+  "definitions": {
+    "Answer": {
+      "type": "object",
+      "required": [
+        "id",
+        "text",
+        "orderIndex"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "orderIndex": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "Answer option for select-type questions"
+    },
+    "Question": {
+      "type": "object",
+      "required": [
+        "id",
+        "text",
+        "questionType",
+        "isRequired",
+        "orderIndex"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isRequired": {
+          "type": "boolean"
+        },
+        "orderIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "questionType": {
+          "enum": [
+            "TEXT_INPUT",
+            "DATE",
+            "INTEGER",
+            "DECIMAL",
+            "EXCLUSIVE_SELECT",
+            "MULTI_SELECT"
+          ],
+          "type": "string"
+        }
+      },
+      "description": "Individual question in a questionnaire"
+    }
+  },
+  "description": "A questionnaire containing multiple questions for users to answer"
+}

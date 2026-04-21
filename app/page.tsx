@@ -62,39 +62,95 @@ type QuestionnaireSchema = {
   steps: SchemaStep[];
 };
 
-// Gandalf Questionnaire Types
+// Gandalf Questionnaire Types — aligned with questionnaire-schema.json (Apr 21)
 type GandalfAnswer = {
   id: string;
-  questionId?: string;
   text: string;
+  orderIndex: number;
+  // Legacy/optional fields preserved for backward compat with older exports
+  questionId?: string;
   referenceUrl?: string | null;
   nextQuestionId?: string | null;
-  orderIndex: number;
 };
+
+type QuestionType =
+  | 'TEXT_INPUT'
+  | 'DATE'
+  | 'INTEGER'
+  | 'DECIMAL'
+  | 'EXCLUSIVE_SELECT'
+  | 'MULTI_SELECT';
 
 type GandalfQuestion = {
   id: string;
-  questionnaireId?: string;
   text: string;
-  supportingDetail?: string | null;
-  questionType: 'TEXT_INPUT' | 'EXCLUSIVE_SELECT' | 'MULTI_SELECT';
-  orderIndex: number;
-  scopeId?: string | null;
+  questionType: QuestionType;
   isRequired: boolean;
+  orderIndex: number;
+  // Not in the new schema's Question definition, but used at runtime / older data
+  questionnaireId?: string;
+  supportingDetail?: string | null;
+  scopeId?: string | null;
   answers?: GandalfAnswer[];
 };
+
+type QuestionnaireStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 type GandalfQuestionnaire = {
   id: string;
   title: string;
-  description?: string | null;
+  status: QuestionnaireStatus;
   version: number;
-  isPublished: boolean;
-  parentQuestionnaireId?: string | null;
-  createdBy?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  description?: string | null;
+  publishedAt?: string | null;
+  // Not defined on the top-level schema, but carried alongside for import/render
   questions: GandalfQuestion[];
+};
+
+// Response Types — aligned with response-schema.json (Apr 21)
+type ResponseStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'SE_APPROVED'
+  | 'SE_REJECTED'
+  | 'MERCHANT_APPROVED'
+  | 'MERCHANT_REJECTED'
+  | 'PRODUCT_APPROVED'
+  | 'PRODUCT_REJECTED';
+
+type CommentType = 'USER' | 'RESPONDENT' | 'SE' | 'PRODUCT' | 'ADMIN';
+
+type ResponseComment = {
+  id: string;
+  text: string;
+  commentType: CommentType;
+};
+
+type ResponseEntry = {
+  id: string;
+  questionId: string;
+  value?: string | null;
+  selectedAnswers?: SelectedAnswer[];
+};
+
+type SelectedAnswer = {
+  id: string;
+  answerId: string;
+};
+
+type GandalfResponse = {
+  id: string;
+  questionnaireId: string;
+  userId: string;
+  status: ResponseStatus;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string | null;
+  entries?: ResponseEntry[];
+  comments?: ResponseComment[];
 };
 
 type SOWData = {
@@ -661,6 +717,7 @@ export default function Home() {
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [schema, setSchema] = useState<QuestionnaireSchema | null>(null);
   const [gandalfQuestionnaire, setGandalfQuestionnaire] = useState<GandalfQuestionnaire | null>(null);
+  const [gandalfResponse, setGandalfResponse] = useState<GandalfResponse | null>(null);
   const [showSchemaImport, setShowSchemaImport] = useState(false);
   const [dynamicFormData, setDynamicFormData] = useState<Record<string, any>>({});
   const [versions, setVersions] = useState<SOWVersion[]>([]);
@@ -753,20 +810,63 @@ export default function Home() {
       try {
         const data = JSON.parse(e.target?.result as string);
 
-        // Check if it's a Gandalf questionnaire (has questions array)
-        if (data.questions && Array.isArray(data.questions)) {
-          setGandalfQuestionnaire(data);
+        // Detect Response schema (Apr 21 response-schema.json)
+        const looksLikeResponse =
+          data.questionnaireId &&
+          data.userId &&
+          typeof data.status === 'string' &&
+          ['DRAFT', 'SUBMITTED', 'SE_APPROVED', 'SE_REJECTED', 'MERCHANT_APPROVED', 'MERCHANT_REJECTED', 'PRODUCT_APPROVED', 'PRODUCT_REJECTED'].includes(data.status);
+
+        // Detect Questionnaire schema (Apr 21 questionnaire-schema.json)
+        // Required: id, title, status, version, createdById, createdAt, updatedAt
+        const looksLikeNewQuestionnaire =
+          typeof data.title === 'string' &&
+          typeof data.status === 'string' &&
+          ['DRAFT', 'PUBLISHED', 'ARCHIVED'].includes(data.status) &&
+          typeof data.version === 'number' &&
+          typeof data.createdById === 'string';
+
+        if (looksLikeResponse) {
+          // Import a response that references an existing questionnaire
+          setGandalfResponse(data as GandalfResponse);
+          // Hydrate dynamicFormData from response entries so the form pre-fills
+          const formData: Record<string, any> = {};
+          (data.entries || []).forEach((entry: ResponseEntry) => {
+            if (entry.selectedAnswers && entry.selectedAnswers.length > 0) {
+              // EXCLUSIVE_SELECT stores a single id; MULTI_SELECT stores an array
+              formData[entry.questionId] =
+                entry.selectedAnswers.length === 1
+                  ? entry.selectedAnswers[0].answerId
+                  : entry.selectedAnswers.map((sa) => sa.answerId);
+            } else if (entry.value != null) {
+              formData[entry.questionId] = entry.value;
+            }
+          });
+          setDynamicFormData(formData);
+          alert(`Response imported successfully! (status: ${data.status})`);
+        } else if (looksLikeNewQuestionnaire && Array.isArray(data.questions)) {
+          // New Apr 21 questionnaire format
+          setGandalfQuestionnaire(data as GandalfQuestionnaire);
+          setGandalfResponse(null);
           setSchema(null);
           setDynamicFormData({});
-          alert(`Gandalf questionnaire "${data.title}" imported successfully!`);
+          alert(`Questionnaire "${data.title}" (v${data.version}, ${data.status}) imported successfully!`);
+        } else if (data.questions && Array.isArray(data.questions)) {
+          // Legacy Gandalf questionnaire (pre-Apr 21)
+          setGandalfQuestionnaire(data);
+          setGandalfResponse(null);
+          setSchema(null);
+          setDynamicFormData({});
+          alert(`Questionnaire "${data.title}" imported successfully!`);
         }
         // Otherwise assume it's our custom schema format
         else if (data.steps && Array.isArray(data.steps)) {
           setSchema(data);
           setGandalfQuestionnaire(null);
+          setGandalfResponse(null);
           alert('Custom schema imported successfully!');
         } else {
-          alert('Unrecognized schema format. Please upload a valid questionnaire JSON.');
+          alert('Unrecognized schema format. Please upload a valid questionnaire or response JSON.');
           return;
         }
 
@@ -1097,6 +1197,62 @@ export default function Home() {
               value={fieldValue}
               onChange={(e) => handleChange(e.target.value)}
               placeholder="Enter your answer..."
+              required={question.isRequired}
+            />
+          </div>
+        );
+
+      case 'DATE':
+        return (
+          <div>
+            {question.supportingDetail && (
+              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            )}
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={fieldValue}
+              onChange={(e) => handleChange(e.target.value)}
+              required={question.isRequired}
+            />
+          </div>
+        );
+
+      case 'INTEGER':
+        return (
+          <div>
+            {question.supportingDetail && (
+              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            )}
+            <input
+              type="number"
+              step="1"
+              className={styles.textInput}
+              value={fieldValue}
+              onChange={(e) => {
+                // Keep as string but restrict to whole numbers
+                const v = e.target.value;
+                if (v === '' || /^-?\d+$/.test(v)) handleChange(v);
+              }}
+              placeholder="Enter a whole number..."
+              required={question.isRequired}
+            />
+          </div>
+        );
+
+      case 'DECIMAL':
+        return (
+          <div>
+            {question.supportingDetail && (
+              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            )}
+            <input
+              type="number"
+              step="any"
+              className={styles.textInput}
+              value={fieldValue}
+              onChange={(e) => handleChange(e.target.value)}
+              placeholder="Enter a number..."
               required={question.isRequired}
             />
           </div>

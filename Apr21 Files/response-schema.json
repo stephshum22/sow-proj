@@ -1,0 +1,137 @@
+{
+  "type": "object",
+  "title": "Response",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "required": [
+    "id",
+    "questionnaireId",
+    "userId",
+    "status",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the response"
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "SUBMITTED",
+        "SE_APPROVED",
+        "SE_REJECTED",
+        "MERCHANT_APPROVED",
+        "MERCHANT_REJECTED",
+        "PRODUCT_APPROVED",
+        "PRODUCT_REJECTED"
+      ],
+      "type": "string",
+      "description": "Current status of the response"
+    },
+    "userId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the user submitting the response"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the response was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the response was last updated"
+    },
+    "submittedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the response was submitted"
+    },
+    "questionnaireId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the questionnaire being responded to"
+    }
+  },
+  "definitions": {
+    "Comment": {
+      "type": "object",
+      "required": [
+        "id",
+        "text",
+        "commentType"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "commentType": {
+          "enum": [
+            "USER",
+            "RESPONDENT",
+            "SE",
+            "PRODUCT",
+            "ADMIN"
+          ],
+          "type": "string"
+        }
+      },
+      "description": "Comment on a response"
+    },
+    "ResponseEntry": {
+      "type": "object",
+      "required": [
+        "id",
+        "questionId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Answer value for non-select questions"
+        },
+        "questionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "description": "A single answer to a question"
+    },
+    "SelectedAnswer": {
+      "type": "object",
+      "required": [
+        "id",
+        "answerId"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "answerId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "description": "Selected answer for select-type questions"
+    }
+  },
+  "description": "A user's response to a questionnaire"
+}

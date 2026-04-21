@@ -106,7 +106,12 @@ type GandalfQuestion = {
   allowComments?: boolean;
   scope?: string | null;
   referenceUrl?: string | null;
-  sourceType?: string | null;
+  // Source of the answer list — most questions are 'manual' (answers inline on the
+  // question itself), 'api' (populated by an external source, stored inline), or
+  // 'previous_response' (answers derived from another question's responses).
+  sourceType?: 'manual' | 'api' | 'previous_response' | string | null;
+  sourcePreviousQuestionId?: string | null;
+  sourcePreviousFilter?: 'selected_only' | 'all' | string | null;
 };
 
 type QuestionnaireStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -1264,6 +1269,50 @@ export default function Home() {
     );
   }
 
+  // Resolve the effective answer list for a question. Most questions carry their
+  // answers inline, but `sourceType: 'previous_response'` questions derive their
+  // options from another question's responses (e.g. "which currencies do they
+  // settle in?" should only offer currencies selected in "which currencies are
+  // accepted?").
+  const resolveAnswersForQuestion = (question: GandalfQuestion): GandalfAnswer[] => {
+    if (
+      question.sourceType === 'previous_response' &&
+      question.sourcePreviousQuestionId &&
+      gandalfQuestionnaire
+    ) {
+      const sourceQ = gandalfQuestionnaire.questions.find(
+        (q) => q.id === question.sourcePreviousQuestionId
+      );
+      if (!sourceQ || !sourceQ.answers) return [];
+
+      const sourceSelection = dynamicFormData[sourceQ.id];
+      const selectedIds: string[] = Array.isArray(sourceSelection)
+        ? sourceSelection
+        : sourceSelection
+          ? [sourceSelection]
+          : [];
+
+      if (question.sourcePreviousFilter === 'selected_only') {
+        const selectedSet = new Set(selectedIds);
+        // Preserve the selection order (as the user picked them) where possible,
+        // falling back to the source question's orderIndex.
+        const byId = new Map(sourceQ.answers.map((a) => [a.id, a]));
+        const ordered: GandalfAnswer[] = [];
+        selectedIds.forEach((id) => {
+          const a = byId.get(id);
+          if (a) ordered.push(a);
+        });
+        // If no selections yet, fall back to empty list (handled below)
+        return ordered.length > 0
+          ? ordered
+          : sourceQ.answers.filter((a) => selectedSet.has(a.id));
+      }
+      // 'all' or unrecognized filter → return every answer from the source question
+      return [...sourceQ.answers];
+    }
+    return question.answers || [];
+  };
+
   const renderGandalfQuestion = (question: GandalfQuestion) => {
     const fieldValue = dynamicFormData[question.id] || '';
     const supportingText = question.supportingDetail || question.supportingDetails;
@@ -1275,9 +1324,28 @@ export default function Home() {
       });
     };
 
-    const sortedAnswers = question.answers
-      ? [...question.answers].sort((a, b) => a.orderIndex - b.orderIndex)
-      : [];
+    const resolvedAnswers = resolveAnswersForQuestion(question);
+    const sortedAnswers = [...resolvedAnswers].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    // Helpful empty-state for questions whose options come from a previous answer
+    // that the user hasn't filled in yet.
+    const needsSource =
+      question.sourceType === 'previous_response' &&
+      question.sourcePreviousQuestionId &&
+      sortedAnswers.length === 0;
+
+    if (needsSource && (question.questionType === 'MULTI_SELECT' || question.questionType === 'EXCLUSIVE_SELECT')) {
+      return (
+        <div>
+          {supportingText && (
+            <p className={styles.supportingDetail}>{supportingText}</p>
+          )}
+          <p className={styles.supportingDetail} style={{ fontStyle: 'italic', opacity: 0.75 }}>
+            No options available yet — answer the previous related question first, then come back.
+          </p>
+        </div>
+      );
+    }
     // Use a compact grid layout for questions with many options (10+)
     const useGrid = sortedAnswers.length > 10;
 

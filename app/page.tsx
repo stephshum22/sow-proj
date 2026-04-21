@@ -2082,9 +2082,6 @@ export default function Home() {
         })()}
 
         <div className={styles.formContent}>
-          <div className={styles.stepIndicator}>
-            Step {currentStep + 1} of {totalSteps}
-          </div>
           <h2>
             {gandalfQuestionnaire && currentCategory && 'text' in currentCategory
               ? (currentCategory as GandalfQuestion).text

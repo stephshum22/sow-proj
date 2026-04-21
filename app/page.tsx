@@ -81,6 +81,15 @@ type QuestionType =
   | 'EXCLUSIVE_SELECT'
   | 'MULTI_SELECT';
 
+type ConditionalRule = {
+  id?: string;
+  triggerQuestionId: string;
+  triggerAnswerId?: string | null;
+  operator?: 'SELECTED' | 'NOT_SELECTED' | 'EQUALS' | 'NOT_EQUALS' | string;
+  comparisonValue?: string | null;
+  action?: 'SHOW' | 'HIDE' | string;
+};
+
 type GandalfQuestion = {
   id: string;
   text: string;
@@ -90,8 +99,14 @@ type GandalfQuestion = {
   // Not in the new schema's Question definition, but used at runtime / older data
   questionnaireId?: string;
   supportingDetail?: string | null;
+  supportingDetails?: string | null; // claudey.json uses plural spelling
   scopeId?: string | null;
   answers?: GandalfAnswer[];
+  conditionalLogic?: ConditionalRule[];
+  allowComments?: boolean;
+  scope?: string | null;
+  referenceUrl?: string | null;
+  sourceType?: string | null;
 };
 
 type QuestionnaireStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -793,12 +808,86 @@ export default function Home() {
     try {
       const response = await fetch('/default-schema.json');
       const schemaData = await response.json();
+
+      // New Gandalf questionnaire format (claudey.json, Apr 2026)
+      if (schemaData && Array.isArray(schemaData.questions)) {
+        setGandalfQuestionnaire(schemaData);
+        setSchema(null);
+        console.log(`Default questionnaire loaded: "${schemaData.title}" (${schemaData.questions.length} questions)`);
+        return;
+      }
+
+      // Legacy step-based schema
       setSchema(schemaData);
-      console.log('Default schema loaded successfully');
+      console.log('Default schema loaded successfully (legacy step-based format)');
     } catch (error) {
       console.error('Failed to load default schema, using hardcoded defaults:', error);
       // Schema stays null, will fall back to CATEGORIES
     }
+  };
+
+  // Evaluate conditional-logic rules for a single question against current form data
+  const isQuestionVisible = (
+    question: GandalfQuestion,
+    formData: Record<string, any>
+  ): boolean => {
+    const rules = question.conditionalLogic || [];
+    if (rules.length === 0) return true;
+
+    // A question is visible when it matches ANY of its SHOW rules (and no HIDE rule matches)
+    let hasShowRule = false;
+    let anyShowMatch = false;
+    let anyHideMatch = false;
+
+    for (const rule of rules) {
+      const currentAnswer = formData[rule.triggerQuestionId];
+      let matched = false;
+
+      if (rule.operator === 'SELECTED' || rule.operator === 'EQUALS' || !rule.operator) {
+        if (rule.triggerAnswerId != null) {
+          matched = Array.isArray(currentAnswer)
+            ? currentAnswer.includes(rule.triggerAnswerId)
+            : currentAnswer === rule.triggerAnswerId;
+        } else if (rule.comparisonValue != null) {
+          matched = currentAnswer === rule.comparisonValue;
+        }
+      } else if (rule.operator === 'NOT_SELECTED' || rule.operator === 'NOT_EQUALS') {
+        if (rule.triggerAnswerId != null) {
+          matched = Array.isArray(currentAnswer)
+            ? !currentAnswer.includes(rule.triggerAnswerId)
+            : currentAnswer !== rule.triggerAnswerId;
+        } else if (rule.comparisonValue != null) {
+          matched = currentAnswer !== rule.comparisonValue;
+        }
+      }
+
+      if (rule.action === 'HIDE') {
+        if (matched) anyHideMatch = true;
+      } else {
+        hasShowRule = true;
+        if (matched) anyShowMatch = true;
+      }
+    }
+
+    if (anyHideMatch) return false;
+    if (hasShowRule) return anyShowMatch;
+    return true;
+  };
+
+  // All top-level (non-conditional) questions, sorted by orderIndex
+  const getTopLevelGandalfQuestions = (): GandalfQuestion[] => {
+    if (!gandalfQuestionnaire) return [];
+    return [...gandalfQuestionnaire.questions]
+      .filter((q) => !q.conditionalLogic || q.conditionalLogic.length === 0)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  };
+
+  // Currently visible questions (top-level + any conditionals whose triggers are met)
+  const getVisibleGandalfQuestions = (): GandalfQuestion[] => {
+    if (!gandalfQuestionnaire) return [];
+    return [...gandalfQuestionnaire.questions]
+      .filter((q) => isQuestionVisible(q, dynamicFormData))
+      .sort((a, b) => a.orderIndex - b.orderIndex);
   };
 
   const handleSchemaImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -936,8 +1025,9 @@ export default function Home() {
     const adjustedStep = currentStep - 1;
 
     if (gandalfQuestionnaire) {
-      const sortedQuestions = [...gandalfQuestionnaire.questions].sort((a, b) => a.orderIndex - b.orderIndex);
-      return sortedQuestions[adjustedStep];
+      // Only traverse visible questions (skips conditionals whose trigger isn't met)
+      const visible = getVisibleGandalfQuestions();
+      return visible[adjustedStep];
     } else if (schema) {
       return schema.steps[adjustedStep];
     } else {
@@ -948,7 +1038,7 @@ export default function Home() {
   const getTotalSteps = () => {
     let baseSteps = 0;
     if (gandalfQuestionnaire) {
-      baseSteps = gandalfQuestionnaire.questions.length;
+      baseSteps = getVisibleGandalfQuestions().length;
     } else if (schema) {
       baseSteps = schema.steps.length;
     } else {
@@ -1176,6 +1266,7 @@ export default function Home() {
 
   const renderGandalfQuestion = (question: GandalfQuestion) => {
     const fieldValue = dynamicFormData[question.id] || '';
+    const supportingText = question.supportingDetail || question.supportingDetails;
 
     const handleChange = (value: any) => {
       setDynamicFormData({
@@ -1184,12 +1275,18 @@ export default function Home() {
       });
     };
 
+    const sortedAnswers = question.answers
+      ? [...question.answers].sort((a, b) => a.orderIndex - b.orderIndex)
+      : [];
+    // Use a compact grid layout for questions with many options (10+)
+    const useGrid = sortedAnswers.length > 10;
+
     switch (question.questionType) {
       case 'TEXT_INPUT':
         return (
           <div>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
             <input
               type="text"
@@ -1205,8 +1302,8 @@ export default function Home() {
       case 'DATE':
         return (
           <div>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
             <input
               type="date"
@@ -1221,8 +1318,8 @@ export default function Home() {
       case 'INTEGER':
         return (
           <div>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
             <input
               type="number"
@@ -1230,7 +1327,6 @@ export default function Home() {
               className={styles.textInput}
               value={fieldValue}
               onChange={(e) => {
-                // Keep as string but restrict to whole numbers
                 const v = e.target.value;
                 if (v === '' || /^-?\d+$/.test(v)) handleChange(v);
               }}
@@ -1243,8 +1339,8 @@ export default function Home() {
       case 'DECIMAL':
         return (
           <div>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
             <input
               type="number"
@@ -1261,24 +1357,27 @@ export default function Home() {
       case 'EXCLUSIVE_SELECT':
         return (
           <div className={styles.radioGroup}>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
-            <div className={styles.radioOptionsVertical}>
-              {question.answers?.sort((a, b) => a.orderIndex - b.orderIndex).map((answer) => (
-                <div key={answer.id}>
-                  <label className={styles.radioOption}>
+            <div className={useGrid ? styles.answerGrid : styles.radioOptionsVertical}>
+              {sortedAnswers.map((answer) => (
+                <div key={answer.id} className={useGrid ? styles.answerGridItem : undefined}>
+                  <label
+                    className={useGrid ? styles.answerChip : styles.radioOption}
+                    data-selected={fieldValue === answer.id ? 'true' : 'false'}
+                  >
                     <input
                       type="radio"
                       name={question.id}
                       checked={fieldValue === answer.id}
                       onChange={() => handleChange(answer.id)}
-                      className={styles.radio}
+                      className={useGrid ? styles.answerChipInput : styles.radio}
                       required={question.isRequired}
                     />
                     <span>{answer.text}</span>
                   </label>
-                  {answer.referenceUrl && (
+                  {answer.referenceUrl && !useGrid && (
                     <a
                       href={answer.referenceUrl}
                       target="_blank"
@@ -1294,7 +1393,7 @@ export default function Home() {
           </div>
         );
 
-      case 'MULTI_SELECT':
+      case 'MULTI_SELECT': {
         const multiSelectValue = fieldValue || [];
 
         const toggleMultiSelect = (answerId: string) => {
@@ -1307,35 +1406,44 @@ export default function Home() {
         };
 
         return (
-          <div className={styles.checkboxGroup}>
-            {question.supportingDetail && (
-              <p className={styles.supportingDetail}>{question.supportingDetail}</p>
+          <div className={useGrid ? styles.checkboxGroupGrid : styles.checkboxGroup}>
+            {supportingText && (
+              <p className={styles.supportingDetail}>{supportingText}</p>
             )}
-            {question.answers?.sort((a, b) => a.orderIndex - b.orderIndex).map((answer) => (
-              <div key={answer.id}>
-                <label className={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={multiSelectValue.includes(answer.id)}
-                    onChange={() => toggleMultiSelect(answer.id)}
-                    className={styles.checkbox}
-                  />
-                  <span>{answer.text}</span>
-                </label>
-                {answer.referenceUrl && (
-                  <a
-                    href={answer.referenceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.referenceLink}
-                  >
-                    📚 Learn more
-                  </a>
-                )}
-              </div>
-            ))}
+            <div className={useGrid ? styles.answerGrid : undefined}>
+              {sortedAnswers.map((answer) => {
+                const selected = Array.isArray(multiSelectValue) && multiSelectValue.includes(answer.id);
+                return (
+                  <div key={answer.id} className={useGrid ? styles.answerGridItem : undefined}>
+                    <label
+                      className={useGrid ? styles.answerChip : styles.checkboxLabel}
+                      data-selected={selected ? 'true' : 'false'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleMultiSelect(answer.id)}
+                        className={useGrid ? styles.answerChipInput : styles.checkbox}
+                      />
+                      <span>{answer.text}</span>
+                    </label>
+                    {answer.referenceUrl && !useGrid && (
+                      <a
+                        href={answer.referenceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.referenceLink}
+                      >
+                        📚 Learn more
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
+      }
 
       default:
         return <div>Unsupported question type: {question.questionType}</div>;
@@ -1907,81 +2015,71 @@ export default function Home() {
           </div>
         </div>
 
-        <div className={styles.progressBar}>
-          <div className={styles.progressSteps}>
-            {userRole === 'merchant' && (
-              <div
-                className={`${styles.progressStep} ${0 <= currentStep ? styles.progressStepActive : ''}`}
-              >
-                <div className={styles.progressStepCircle}>{0 < currentStep ? '✓' : 1}</div>
-                <span className={styles.progressStepLabel}>Merchant Name</span>
+        {/* Progress bar — replaces per-step circles.
+            For Gandalf questionnaires we only count top-level (non-conditional) questions,
+            so 19 shows as the denominator instead of 110. */}
+        {(() => {
+          let totalForBar = 0;
+          let completedForBar = 0;
+          let currentLabel = '';
+
+          if (gandalfQuestionnaire) {
+            const topLevel = getTopLevelGandalfQuestions();
+            totalForBar = topLevel.length + (userRole === 'merchant' ? 1 : 0);
+            const currentQ = currentCategory && 'id' in currentCategory && 'questionType' in currentCategory
+              ? (currentCategory as GandalfQuestion)
+              : null;
+            const adjustedStep = currentStep - (userRole === 'merchant' ? 1 : 0);
+            const visible = getVisibleGandalfQuestions();
+            const currentVisible = visible[Math.max(0, adjustedStep)];
+            if (currentStep === 0 && userRole === 'merchant') {
+              completedForBar = 0;
+              currentLabel = 'Merchant Name';
+            } else if (currentVisible) {
+              // How many top-level questions sit at or before this question's orderIndex
+              const answeredTopLevel = topLevel.filter(
+                (q) => q.orderIndex < currentVisible.orderIndex
+              ).length;
+              completedForBar = answeredTopLevel + (userRole === 'merchant' ? 1 : 0);
+              // Is this question itself top-level?
+              const isTopLevel = !currentVisible.conditionalLogic || currentVisible.conditionalLogic.length === 0;
+              currentLabel = isTopLevel
+                ? `Question ${answeredTopLevel + 1} of ${topLevel.length}`
+                : `Follow-up to Question ${answeredTopLevel} of ${topLevel.length}`;
+            }
+          } else if (schema) {
+            totalForBar = schema.steps.length + (userRole === 'merchant' ? 1 : 0);
+            completedForBar = currentStep;
+            currentLabel = '';
+          } else {
+            totalForBar = CATEGORIES.length + (userRole === 'merchant' ? 1 : 0);
+            completedForBar = currentStep;
+            currentLabel = '';
+          }
+
+          const pct = totalForBar > 0 ? Math.min(100, Math.round((completedForBar / totalForBar) * 100)) : 0;
+
+          return (
+            <div className={styles.progressBar}>
+              <div className={styles.progressBarHeader}>
+                <span className={styles.progressBarLabel}>
+                  {currentLabel || `Step ${Math.min(completedForBar + 1, totalForBar)} of ${totalForBar}`}
+                </span>
+                <span className={styles.progressBarPercent}>{pct}%</span>
               </div>
-            )}
-            {gandalfQuestionnaire ? (
-              gandalfQuestionnaire.questions
-                .sort((a, b) => a.orderIndex - b.orderIndex)
-                .map((q, idx) => {
-                  const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
-                  const isClickable = userRole === 'se';
-                  return (
-                    <div
-                      key={q.id}
-                      className={`${styles.progressStep} ${
-                        displayIdx <= currentStep ? styles.progressStepActive : ''
-                      } ${isClickable ? styles.progressStepClickable : ''}`}
-                      onClick={() => isClickable && setCurrentStep(displayIdx)}
-                      title={isClickable ? `Jump to Q${displayIdx + 1}` : undefined}
-                    >
-                      <div className={styles.progressStepCircle}>
-                        {displayIdx < currentStep ? '✓' : displayIdx + 1}
-                      </div>
-                      <span className={styles.progressStepLabel}>Q{displayIdx + 1}</span>
-                    </div>
-                  );
-                })
-            ) : schema ? (
-              schema.steps.map((step, idx) => {
-                const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
-                const isClickable = userRole === 'se';
-                return (
-                  <div
-                    key={step.id}
-                    className={`${styles.progressStep} ${
-                      displayIdx <= currentStep ? styles.progressStepActive : ''
-                    } ${isClickable ? styles.progressStepClickable : ''}`}
-                    onClick={() => isClickable && setCurrentStep(displayIdx)}
-                    title={isClickable ? `Jump to ${step.label}` : undefined}
-                  >
-                    <div className={styles.progressStepCircle}>
-                      {displayIdx < currentStep ? '✓' : displayIdx + 1}
-                    </div>
-                    <span className={styles.progressStepLabel}>{step.label}</span>
-                  </div>
-                );
-              })
-            ) : (
-              CATEGORIES.map((cat, idx) => {
-                const displayIdx = userRole === 'merchant' ? idx + 1 : idx;
-                const isClickable = userRole === 'se';
-                return (
-                  <div
-                    key={cat.id}
-                    className={`${styles.progressStep} ${
-                      displayIdx <= currentStep ? styles.progressStepActive : ''
-                    } ${isClickable ? styles.progressStepClickable : ''}`}
-                    onClick={() => isClickable && setCurrentStep(displayIdx)}
-                    title={isClickable ? `Jump to ${cat.label}` : undefined}
-                  >
-                    <div className={styles.progressStepCircle}>
-                      {displayIdx < currentStep ? '✓' : displayIdx + 1}
-                    </div>
-                    <span className={styles.progressStepLabel}>{cat.label}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+              <div className={styles.progressBarTrack}>
+                <div
+                  className={styles.progressBarFill}
+                  style={{ width: `${pct}%` }}
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         <div className={styles.formContent}>
           <div className={styles.stepIndicator}>
